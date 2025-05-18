@@ -10,9 +10,12 @@ The Model Context Protocol (MCP) is a specification that allows AI agents to int
 - Access n8n tools and functions
 - Interact with your automation workflows through a standardized interface
 
+The server is now designed with a modular approach, with tools located in a dedicated `tools` directory, making it easier to manage and extend.
+
 ## Features
 
 - MCP server implementation compatible with n8n
+- Modular tool design: Tools are organized in a separate `tools` directory, allowing for easy addition and management of new capabilities.
 - Support for SSE (Server-Sent Events) endpoint
 - Authentication support (Bearer and generic header methods)
 - Tool selection and filtering capabilities
