@@ -85,6 +85,83 @@ These tools leverage the Brave Search API to perform web and local searches. Req
     *   `error` (if status is "error"): Description of the error (e.g., "Division by zero is not allowed", "Unknown operation: ...").
 *   **Environment Variables:** None.
 
+## 4. Web Crawler Tools
+
+These tools leverage Crawl4AI, an open-source LLM-friendly web crawler to extract content from websites. Requires `crawl4ai` to be installed.
+
+### 4.1. `crawl_webpage`
+
+*   **Description:** Crawls a single webpage and extracts its content in various formats (markdown, HTML, or plain text).
+*   **Arguments:**
+    *   `url` (str, required): URL of the webpage to crawl.
+    *   `output_format` (str, optional, default: "markdown"): Format of the output - "markdown", "html", "text", or "all".
+    *   `include_links` (bool, optional, default: True): Whether to include links in the output.
+    *   `include_images` (bool, optional, default: True): Whether to include images in the output.
+    *   `headless` (bool, optional, default: True): Whether to run the browser in headless mode.
+    *   `extract_main_content` (bool, optional, default: True): Whether to extract only the main content or the entire page.
+    *   `cache_enabled` (bool, optional, default: True): Whether to use cache if available.
+    *   `wait_for_selector` (str, optional): CSS selector to wait for before extracting content.
+    *   `wait_time` (int, optional): Additional time in milliseconds to wait after page load.
+*   **Returns:** (Dict[str, Any])
+    *   `url`: The URL that was crawled.
+    *   `status_code`: HTTP status code of the response.
+    *   `title`: Title of the webpage.
+    *   `markdown`: Extracted content in Markdown format (if requested).
+    *   `html`: Extracted content in HTML format (if requested).
+    *   `text`: Extracted content in plain text format (if requested).
+    *   `links`: Dictionary of internal and external links (if include_links is True).
+    *   `images`: List of images found on the page (if include_images is True).
+    *   `status`: "success" or "error".
+    *   `error` (if status is "error"): Description of the error.
+*   **Environment Variables:** None directly, uses Crawl4AI library.
+
+### 4.2. `crawl_multiple_webpages`
+
+*   **Description:** Crawls multiple webpages in parallel and extracts their content.
+*   **Arguments:**
+    *   `urls` (List[str], required): List of URLs to crawl.
+    *   `output_format` (str, optional, default: "markdown"): Format of the output - "markdown", "html", "text", or "all".
+    *   `include_links` (bool, optional, default: True): Whether to include links in the output.
+    *   `include_images` (bool, optional, default: True): Whether to include images in the output.
+    *   `headless` (bool, optional, default: True): Whether to run the browser in headless mode.
+    *   `extract_main_content` (bool, optional, default: True): Whether to extract only the main content or the entire page.
+    *   `max_concurrent` (int, optional, default: 5): Maximum number of concurrent crawls.
+*   **Returns:** (Dict[str, Any])
+    *   `results`: Dictionary with URLs as keys and their respective crawl results as values.
+    *   `count`: Total number of URLs processed.
+    *   `successful`: Number of successful crawls.
+    *   `failed`: Number of failed crawls.
+    *   `status`: "success" or "error".
+    *   `error` (if status is "error"): Description of the error.
+*   **Environment Variables:** None directly, uses Crawl4AI library.
+
+### 4.3. `extract_structured_data`
+
+*   **Description:** Extracts structured data from a webpage using CSS selectors.
+*   **Arguments:**
+    *   `url` (str, required): URL of the webpage to crawl.
+    *   `schema` (Dict[str, Any], required): Schema defining the CSS selectors for data extraction.
+    *   `headless` (bool, optional, default: True): Whether to run the browser in headless mode.
+    *   `wait_for_selector` (str, optional): CSS selector to wait for before extracting data.
+*   **Returns:** (Dict[str, Any])
+    *   `url`: The URL that was crawled.
+    *   `data`: The extracted structured data.
+    *   `status`: "success" or "error".
+    *   `error` (if status is "error"): Description of the error.
+*   **Environment Variables:** None directly, uses Crawl4AI library.
+*   **Schema Example:**
+    ```json
+    {
+        "name": "Products",
+        "baseSelector": ".product-item",
+        "fields": [
+            {"name": "title", "selector": "h2", "type": "text"},
+            {"name": "price", "selector": ".price", "type": "text"},
+            {"name": "url", "selector": "a", "type": "attribute", "attribute": "href"}
+        ]
+    }
+    ```
+
 ---
 
-To add a new tool or update an existing one, please refer to the `docs/server_and_tool_development.md` guide. 
+To add a new tool or update an existing one, please refer to the `docs/server_and_tool_development.md` guide.
