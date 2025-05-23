@@ -15,7 +15,8 @@ import uvicorn
 from tools import calculator_tool
 from tools import get_weather_tool
 from tools import brave_search
-from tools import crawl4ai_tool  # Import the new web crawler tool
+from tools import crawl4ai_tool
+from tools import airtable_tool
 
 # Optional: Load .env file for local development
 try:
@@ -36,7 +37,8 @@ mcp = FastMCP(MCP_SERVER_NAME)
 calculator_tool.register(mcp)
 get_weather_tool.register(mcp)
 brave_search.register(mcp)
-crawl4ai_tool.register(mcp)  # Register the web crawler tool
+crawl4ai_tool.register(mcp)
+airtable_tool.register(mcp)
 
 # --- Helper for n8n API Requests (REMOVED - MOVED TO tools/n8n_helpers.py) ---
 
