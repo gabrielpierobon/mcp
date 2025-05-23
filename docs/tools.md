@@ -162,6 +162,244 @@ These tools leverage Crawl4AI, an open-source LLM-friendly web crawler to extrac
     }
     ```
 
+## 5. Airtable MCP Tools
+
+These tools enable AI agents to interact with Airtable bases, tables, and records. Requires the `AIRTABLE_PERSONAL_ACCESS_TOKEN` environment variable to be set.
+
+### 5.1. Base Management Tools
+
+#### 5.1.1. `list_airtable_bases`
+
+*   **Description:** Lists all Airtable bases accessible with your Personal Access Token.
+*   **Arguments:** None.
+*   **Returns:** (Dict[str, Any])
+    *   `bases`: List of base objects with `id`, `name`, and `permissionLevel`.
+    *   `offset`: Pagination offset (if applicable).
+    *   `status`: "success" or "error".
+*   **Environment Variables:**
+    *   `AIRTABLE_PERSONAL_ACCESS_TOKEN`: Your Airtable Personal Access Token.
+
+#### 5.1.2. `get_base_schema`
+
+*   **Description:** Gets the schema (tables and fields) of an Airtable base.
+*   **Arguments:**
+    *   `base_id` (str, required): ID of the base to get schema for.
+*   **Returns:** (Dict[str, Any])
+    *   `base_id`: The base ID.
+    *   `tables`: List of table objects with fields, views, and metadata.
+    *   `status`: "success" or "error".
+
+#### 5.1.3. `get_base_by_name`
+
+*   **Description:** Get base information by name instead of requiring the base ID. Useful for user-friendly queries.
+*   **Arguments:**
+    *   `base_name` (str, required): Name of the base (e.g., "Storyteller").
+*   **Returns:** (Dict[str, Any])
+    *   `base_name`: The base name.
+    *   `base_id`: The base ID.
+    *   `permission_level`: User's permission level on this base.
+    *   `status`: "success" or "error".
+    *   `available_bases`: List of available base names (if base not found).
+
+#### 5.1.4. `validate_base_and_table`
+
+*   **Description:** Validates that a base exists and contains the specified table. Helpful for error prevention.
+*   **Arguments:**
+    *   `base_name` (str, required): Name of the base.
+    *   `table_name` (str, required): Name of the table.
+*   **Returns:** (Dict[str, Any])
+    *   `base_name`: The base name.
+    *   `base_id`: The base ID.
+    *   `table_name`: The table name.
+    *   `table_id`: The table ID.
+    *   `table_fields`: List of field names in the table.
+    *   `available_tables`: List of available table names (if table not found).
+    *   `validation`: "success" or error details.
+    *   `status`: "success" or "error".
+
+### 5.2. Record Querying Tools
+
+#### 5.2.1. `list_records`
+
+*   **Description:** General-purpose tool to list records from a specific table with advanced filtering, sorting, and field selection.
+*   **Arguments:**
+    *   `base_id` (str, required): ID of the base.
+    *   `table_name` (str, required): Name of the table.
+    *   `fields` (Optional[List[str]]): List of field names to return (returns all if not specified).
+    *   `filter_formula` (Optional[str]): Airtable formula to filter records (e.g., `{Status} = 'Active'`).
+    *   `max_records` (Optional[int], default: 100): Maximum number of records to return (max: 100).
+    *   `sort` (Optional[List[Dict[str, str]]]): Sort objects `[{"field": "FieldName", "direction": "asc"}]`.
+    *   `view` (Optional[str]): Name of the view to use.
+*   **Returns:** (Dict[str, Any])
+    *   `base_id`: The base ID.
+    *   `table_name`: The table name.
+    *   `records`: List of record objects with `id`, `fields`, and `createdTime`.
+    *   `count`: Number of records returned.
+    *   `filter_used`: The filter formula applied (if any).
+    *   `status`: "success" or "error".
+
+#### 5.2.2. `list_records_by_base_name`
+
+*   **Description:** User-friendly version of `list_records` that accepts base name instead of base ID.
+*   **Arguments:**
+    *   `base_name` (str, required): Name of the base (e.g., "Storyteller").
+    *   `table_name` (str, required): Name of the table.
+    *   `fields` (Optional[List[str]]): List of field names to return.
+    *   `filter_formula` (Optional[str]): Airtable formula to filter records.
+    *   `max_records` (Optional[int], default: 100): Maximum number of records to return.
+    *   `sort` (Optional[List[Dict[str, str]]]): Sort objects.
+    *   `view` (Optional[str]): Name of the view to use.
+*   **Returns:** Same as `list_records`.
+*   **Example Usage:**
+    ```
+    "Show me all Spanish stories from my Storyteller base"
+    "List themes from the Themes table in Storyteller"
+    ```
+
+#### 5.2.3. `search_records`
+
+*   **Description:** Search for records by a specific field value with flexible matching options.
+*   **Arguments:**
+    *   `base_id` (str, required): ID of the base.
+    *   `table_name` (str, required): Name of the table.
+    *   `search_field` (str, required): Name of the field to search in.
+    *   `search_value` (str, required): Value to search for.
+    *   `additional_fields` (Optional[List[str]]): Additional fields to return in results.
+    *   `match_type` (Optional[str], default: "exact"): Type of match - "exact", "contains", "starts_with".
+*   **Returns:** (Dict[str, Any])
+    *   Same structure as `list_records` but filtered to matching records.
+
+#### 5.2.4. `search_records_by_base_name`
+
+*   **Description:** User-friendly version of `search_records` that accepts base name instead of base ID.
+*   **Arguments:**
+    *   `base_name` (str, required): Name of the base.
+    *   `table_name` (str, required): Name of the table.
+    *   `search_field` (str, required): Name of the field to search in.
+    *   `search_value` (str, required): Value to search for.
+    *   `additional_fields` (Optional[List[str]]): Additional fields to return.
+    *   `match_type` (Optional[str], default: "exact"): Type of match.
+*   **Returns:** Same as `search_records`.
+*   **Example Usage:**
+    ```
+    "Find all users with Spanish language preference in Storyteller"
+    "Search for stories with 'adventure' theme in my PublicStories table"
+    ```
+
+#### 5.2.5. `get_record_by_id`
+
+*   **Description:** Get a specific record by its Airtable record ID.
+*   **Arguments:**
+    *   `base_id` (str, required): ID of the base.
+    *   `table_name` (str, required): Name of the table.
+    *   `record_id` (str, required): ID of the record to retrieve.
+*   **Returns:** (Dict[str, Any])
+    *   `base_id`: The base ID.
+    *   `table_name`: The table name.
+    *   `record`: Record object with `id`, `fields`, and `createdTime`.
+    *   `status`: "success" or "error".
+
+#### 5.2.6. `count_records`
+
+*   **Description:** Count records in a table, optionally with a filter.
+*   **Arguments:**
+    *   `base_id` (str, required): ID of the base.
+    *   `table_name` (str, required): Name of the table.
+    *   `filter_formula` (Optional[str]): Airtable formula to filter records.
+*   **Returns:** (Dict[str, Any])
+    *   `base_id`: The base ID.
+    *   `table_name`: The table name.
+    *   `count`: Number of records (based on first 100 if table is larger).
+    *   `filter_used`: The filter formula applied (if any).
+    *   `status`: "success" or "error".
+
+### 5.3. Base and Table Creation Tools
+
+**Note:** These tools may be limited on Free Plan accounts. Table and base creation typically requires Team Plan or higher.
+
+#### 5.3.1. `create_airtable_base`
+
+*   **Description:** Create a new Airtable base with optional initial tables.
+*   **Arguments:**
+    *   `name` (str, required): Name of the new base.
+    *   `workspace_id` (Optional[str]): ID of the workspace to create the base in.
+    *   `tables` (Optional[List[Dict[str, Any]]]): List of table configurations to create initially.
+*   **Returns:** (Dict[str, Any])
+    *   `base_id`: ID of the created base.
+    *   `name`: Name of the base.
+    *   `permission_level`: User's permission level.
+    *   `tables`: List of created tables.
+    *   `status`: "success" or "error".
+
+#### 5.3.2. `create_airtable_table`
+
+*   **Description:** Create a new table in an existing Airtable base.
+*   **Arguments:**
+    *   `base_id` (str, required): ID of the base to create the table in.
+    *   `table_name` (str, required): Name of the new table.
+    *   `description` (Optional[str]): Description of the table.
+    *   `fields` (Optional[List[Dict[str, Any]]]): List of field configurations.
+*   **Returns:** (Dict[str, Any])
+    *   `table_id`: ID of the created table.
+    *   `name`: Name of the table.
+    *   `description`: Description of the table.
+    *   `fields`: List of created fields.
+    *   `status`: "success" or "error".
+
+#### 5.3.3. `create_base_with_template`
+
+*   **Description:** Create a new Airtable base using a predefined template.
+*   **Arguments:**
+    *   `name` (str, required): Name of the new base.
+    *   `template` (str, required): Template type - "project_management", "crm", "inventory", "event_planning", "content_calendar".
+    *   `workspace_id` (Optional[str]): ID of the workspace to create the base in.
+*   **Returns:** Same as `create_airtable_base`.
+
+### 5.4. Environment Variables
+
+*   **`AIRTABLE_PERSONAL_ACCESS_TOKEN`**: Your Airtable Personal Access Token with appropriate scopes:
+    *   `data.records:read` - Read records from tables
+    *   `data.records:write` - Create, update, delete records (for future tools)
+    *   `schema.bases:read` - Read base schemas
+    *   `schema.bases:write` - Create and modify bases/tables
+    *   `user.email:read` - (optional) Read user email
+
+### 5.5. Usage Examples
+
+```bash
+# List all available bases
+"What Airtable bases do I have?"
+
+# Get base structure
+"Show me the structure of my Storyteller base"
+
+# Query records with natural language
+"Show me all Spanish stories for preschoolers from my PublicStories table"
+
+# Search for specific records
+"Find all users with Spanish language preference"
+
+# Count records with filters
+"How many themes do I have in my Themes table?"
+
+# Validate before querying
+"Check if my Storyteller base has a Users table"
+```
+
+### 5.6. Best Practices
+
+1. **Use base names instead of IDs** - Tools like `list_records_by_base_name` are more reliable and user-friendly.
+2. **Validate first** - Use `validate_base_and_table` to prevent errors.
+3. **Start with simple queries** - List bases and get schemas before complex filtering.
+4. **Handle Free Plan limitations** - Base/table creation may be restricted; focus on data querying.
+
+### 5.7. Troubleshooting
+
+- **403 Forbidden errors**: Check Personal Access Token permissions and ensure you're using the correct base ID.
+- **Base not found**: Use `list_airtable_bases` to see available bases and their exact names.
+- **Table not found**: Use `get_base_schema` to see available tables in a base.
+- **Filter errors**: Check Airtable formula syntax in filter expressions.
+
 ---
 
 To add a new tool or update an existing one, please refer to the `docs/server_and_tool_development.md` guide.
