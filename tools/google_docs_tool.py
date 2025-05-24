@@ -46,7 +46,7 @@ TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", "token.json")
 # Global context to store recent documents
 _recent_documents_context = {
     "last_document": None,
-    "recent_documents": []  # Store multiple recent docs
+    "recent_documents": []
 }
 
 def _store_document_context(document_id: str, title: str, url: str):
@@ -124,63 +124,20 @@ def get_service(service_name: str, version: str):
         return None
 
 # ======================
-# CONTEXT QUERY TOOLS
-# ======================
-
-async def list_recent_documents() -> Dict[str, Any]:
-    """
-    List recently created Google Documents from this session.
-    
-    Returns:
-        Dictionary containing recent documents information
-    """
-    print("INFO: list_recent_documents called")
-    
-    return {
-        "recent_documents": _recent_documents_context["recent_documents"],
-        "last_document": _recent_documents_context["last_document"],
-        "count": len(_recent_documents_context["recent_documents"]),
-        "status": "success"
-    }
-
-async def find_document_by_title(title_search: str) -> Dict[str, Any]:
-    """
-    Find a document by searching its title.
-    
-    Args:
-        title_search: Partial title to search for (case-insensitive)
-    
-    Returns:
-        Dictionary containing matching documents
-    """
-    print(f"INFO: find_document_by_title called with search: {title_search}")
-    
-    matching_docs = [d for d in _recent_documents_context["recent_documents"] 
-                     if title_search.lower() in d["title"].lower()]
-    
-    return {
-        "matching_documents": matching_docs,
-        "search_term": title_search,
-        "count": len(matching_docs),
-        "all_available_titles": [d["title"] for d in _recent_documents_context["recent_documents"]],
-        "status": "success"
-    }
-
-# ======================
-# GOOGLE DOCS TOOLS
+# SIMPLIFIED GOOGLE DOCS TOOLS
 # ======================
 
 async def create_google_doc(
     title: str,
-    content: Optional[str] = None,
+    content: str,
     share_with: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
-    Create a new Google Document.
+    Create a new Google Document with content.
     
     Args:
         title: Title of the new document (required)
-        content: Initial content for the document (optional)
+        content: Content for the document (required)
         share_with: List of email addresses to share with (optional)
     
     Returns:
@@ -205,13 +162,23 @@ async def create_google_doc(
             }
         
         # Create the document
-        document_body = {
-            'title': title
-        }
-        
+        document_body = {'title': title}
         document = docs_service.documents().create(body=document_body).execute()
         document_id = document.get('documentId')
         document_url = f"https://docs.google.com/document/d/{document_id}/edit"
+        
+        # Add content using simple insert
+        requests = [{
+            'insertText': {
+                'location': {'index': 1},
+                'text': content
+            }
+        }]
+        
+        docs_service.documents().batchUpdate(
+            documentId=document_id,
+            body={'requests': requests}
+        ).execute()
         
         # Store context for future operations
         _store_document_context(document_id, title, document_url)
@@ -220,16 +187,9 @@ async def create_google_doc(
             "document_id": document_id,
             "document_url": document_url,
             "title": title,
+            "content_length": len(content),
             "status": "success"
         }
-        
-        # Add content if provided
-        if content:
-            content_result = await insert_text_to_doc(document_id, content, 1)
-            if content_result.get("status") == "success":
-                result["content_added"] = True
-            else:
-                result["content_warning"] = "Failed to add initial content"
         
         # Share the document if email addresses provided
         if share_with and drive_service:
@@ -251,8 +211,6 @@ async def create_google_doc(
                     print(f"WARNING: Failed to share with {email}: {str(e)}")
             
             result["shared_with"] = shared_successfully
-            if len(shared_successfully) < len(share_with):
-                result["sharing_warnings"] = f"Some sharing failed. Successfully shared with: {shared_successfully}"
         
         return result
         
@@ -268,23 +226,57 @@ async def create_google_doc(
             "status": "error"
         }
 
-async def insert_text_to_doc(
-    document_id: str,
-    text: str,
-    index: int = 1
+async def rewrite_last_doc(
+    new_content: str
 ) -> Dict[str, Any]:
     """
-    Insert text into a Google Document at a specific position.
+    Completely rewrite the most recently created document with entirely new content.
+    This is the main function for editing documents.
     
     Args:
-        document_id: ID of the document (required)
-        text: Text to insert (required)
-        index: Position to insert text (default: 1, which is the beginning)
+        new_content: Complete new content to replace the entire document (required)
     
     Returns:
         Dictionary containing the operation results
     """
-    print(f"INFO: insert_text_to_doc called for document {document_id}")
+    print("INFO: rewrite_last_doc called")
+    
+    if not _recent_documents_context["last_document"]:
+        return {
+            "error": "No recent document found. Please create a document first.",
+            "status": "error"
+        }
+    
+    document_id = _recent_documents_context["last_document"]["id"]
+    
+    # Use the simple rewrite function
+    result = await rewrite_document(document_id, new_content)
+    
+    if result.get("status") == "success":
+        result["updated_document"] = {
+            "document_id": document_id,
+            "title": _recent_documents_context["last_document"]["title"],
+            "url": _recent_documents_context["last_document"]["url"]
+        }
+    
+    return result
+
+async def rewrite_document(
+    document_id: str,
+    new_content: str
+) -> Dict[str, Any]:
+    """
+    Completely rewrite a Google Document with entirely new content.
+    Uses a simple but reliable approach.
+    
+    Args:
+        document_id: ID of the document (required)
+        new_content: Complete new content to replace the entire document (required)
+    
+    Returns:
+        Dictionary containing the operation results
+    """
+    print(f"INFO: rewrite_document called for document {document_id}")
     
     if not GOOGLE_APIS_AVAILABLE:
         return {
@@ -300,25 +292,59 @@ async def insert_text_to_doc(
                 "status": "error"
             }
         
-        requests = [{
-            'insertText': {
-                'location': {
-                    'index': index
-                },
-                'text': text
-            }
-        }]
+        # Step 1: Get the document to find all content
+        document = service.documents().get(documentId=document_id).execute()
         
-        result = service.documents().batchUpdate(
-            documentId=document_id,
-            body={'requests': requests}
-        ).execute()
+        # Step 2: Build requests to delete all text and insert new content
+        requests = []
+        
+        # Find all text content and delete it
+        content_elements = document.get('body', {}).get('content', [])
+        text_ranges = []
+        
+        for element in content_elements:
+            if 'paragraph' in element:
+                paragraph = element['paragraph']
+                for text_element in paragraph.get('elements', []):
+                    if 'textRun' in text_element:
+                        start_index = text_element.get('startIndex')
+                        end_index = text_element.get('endIndex')
+                        if start_index is not None and end_index is not None:
+                            text_ranges.append((start_index, end_index))
+        
+        # Delete text ranges in reverse order (from end to beginning)
+        text_ranges.sort(reverse=True)
+        for start_index, end_index in text_ranges:
+            # Skip the very last character to avoid newline issues
+            if end_index > start_index + 1:
+                requests.append({
+                    'deleteContentRange': {
+                        'range': {
+                            'startIndex': start_index,
+                            'endIndex': end_index - 1  # Avoid the trailing newline
+                        }
+                    }
+                })
+        
+        # Insert new content at the beginning
+        requests.append({
+            'insertText': {
+                'location': {'index': 1},
+                'text': new_content
+            }
+        })
+        
+        # Execute all requests
+        if requests:
+            service.documents().batchUpdate(
+                documentId=document_id,
+                body={'requests': requests}
+            ).execute()
         
         return {
             "document_id": document_id,
-            "text_inserted": text,
-            "insertion_index": index,
-            "revision_id": result.get('documentId'),
+            "new_content_length": len(new_content),
+            "operation": "document_rewritten",
             "status": "success"
         }
         
@@ -328,7 +354,7 @@ async def insert_text_to_doc(
             "status": "error"
         }
     except Exception as e:
-        print(f"ERROR: insert_text_to_doc failed: {str(e)}")
+        print(f"ERROR: rewrite_document failed: {str(e)}")
         return {
             "error": f"Tool execution failed: {str(e)}",
             "status": "error"
@@ -375,7 +401,6 @@ async def read_google_doc(
         return {
             "document_id": document_id,
             "title": document.get('title', ''),
-            "revision_id": document.get('revisionId', ''),
             "content": content,
             "character_count": len(content),
             "status": "success"
@@ -393,221 +418,31 @@ async def read_google_doc(
             "status": "error"
         }
 
-async def replace_entire_doc_content(
-    document_id: str,
-    new_content: str
-) -> Dict[str, Any]:
+async def list_recent_documents() -> Dict[str, Any]:
     """
-    Replace the entire content of a Google Document with new content.
-    
-    Args:
-        document_id: ID of the document (required)
-        new_content: New content to replace the entire document (required)
+    List recently created Google Documents from this session.
     
     Returns:
-        Dictionary containing the operation results
+        Dictionary containing recent documents information
     """
-    print(f"INFO: replace_entire_doc_content called for document {document_id}")
+    print("INFO: list_recent_documents called")
     
-    if not GOOGLE_APIS_AVAILABLE:
-        return {
-            "error": "Google API client libraries are not installed.",
-            "status": "error"
-        }
-    
-    try:
-        service = get_service('docs', 'v1')
-        if not service:
-            return {
-                "error": "Failed to authenticate with Google Docs API.",
-                "status": "error"
-            }
-        
-        # First, read the current document to get its structure
-        try:
-            document = service.documents().get(documentId=document_id).execute()
-        except HttpError as e:
-            if e.resp.status == 404:
-                return {
-                    "error": "Document not found. It may have been deleted or you may not have access.",
-                    "status": "error"
-                }
-            elif e.resp.status == 403:
-                return {
-                    "error": "Access denied. You may not have permission to edit this document.",
-                    "status": "error"
-                }
-            else:
-                return {
-                    "error": f"Failed to access document: {str(e)}",
-                    "status": "error"
-                }
-        
-        # Get the total content length more safely
-        content_length = 1
-        body_content = document.get('body', {}).get('content', [])
-        
-        for element in body_content:
-            if 'paragraph' in element:
-                paragraph = element['paragraph']
-                for text_element in paragraph.get('elements', []):
-                    if 'textRun' in text_element:
-                        text_content = text_element['textRun'].get('content', '')
-                        content_length += len(text_content)
-        
-        # Use a simpler approach: delete content range and insert new
-        requests = []
-        
-        # Only delete if there's content beyond the initial character
-        if content_length > 1:
-            requests.append({
-                'deleteContentRange': {
-                    'range': {
-                        'startIndex': 1,
-                        'endIndex': content_length
-                    }
-                }
-            })
-        
-        # Insert the new content
-        requests.append({
-            'insertText': {
-                'location': {'index': 1},
-                'text': new_content
-            }
-        })
-        
-        # Execute the batch update
-        result = service.documents().batchUpdate(
-            documentId=document_id,
-            body={'requests': requests}
-        ).execute()
-        
-        return {
-            "document_id": document_id,
-            "new_content_length": len(new_content),
-            "original_content_length": content_length,
-            "operation": "entire_document_replaced",
-            "status": "success"
-        }
-        
-    except HttpError as e:
-        error_detail = f"HTTP {e.resp.status}: {str(e)}"
-        if e.resp.status == 400:
-            error_detail += " (Bad request - possibly invalid content or formatting)"
-        elif e.resp.status == 403:
-            error_detail += " (Permission denied - check document sharing settings)"
-        elif e.resp.status == 404:
-            error_detail += " (Document not found)"
-        
-        return {
-            "error": f"Google Docs API error: {error_detail}",
-            "status": "error"
-        }
-    except Exception as e:
-        print(f"ERROR: replace_entire_doc_content failed: {str(e)}")
-        return {
-            "error": f"Tool execution failed: {str(e)}",
-            "status": "error"
-        }
-
-async def update_last_doc_with_content(
-    new_content: str
-) -> Dict[str, Any]:
-    """
-    Replace the entire content of the most recently created document with new content.
-    This is the preferred method for "editing" or "adding to" a document.
-    
-    Args:
-        new_content: New content to replace the entire document (required)
-    
-    Returns:
-        Dictionary containing the operation results
-    """
-    print("INFO: update_last_doc_with_content called")
-    
-    if not _recent_documents_context["last_document"]:
-        return {
-            "error": "No recent document found. Please create a document first or use replace_entire_doc_content with a specific document ID.",
-            "status": "error"
-        }
-    
-    document_id = _recent_documents_context["last_document"]["id"]
-    
-    result = await replace_entire_doc_content(document_id, new_content)
-    
-    if result.get("status") == "success":
-        result["updated_document"] = {
-            "document_id": document_id,
-            "title": _recent_documents_context["last_document"]["title"],
-            "url": _recent_documents_context["last_document"]["url"]
-        }
-    
-    return result
-
-async def append_to_last_doc(
-    text: str,
-    add_line_break: bool = True
-) -> Dict[str, Any]:
-    """
-    Append text to the most recently created document (fallback method).
-    
-    Args:
-        text: Text to append (required)
-        add_line_break: Whether to add a line break before the new text (default: True)
-    
-    Returns:
-        Dictionary containing the operation results
-    """
-    print("INFO: append_to_last_doc called")
-    
-    if not _recent_documents_context["last_document"]:
-        return {
-            "error": "No recent document found. Please create a document first.",
-            "status": "error"
-        }
-    
-    document_id = _recent_documents_context["last_document"]["id"]
-    
-    try:
-        # Read current document content
-        doc_content = await read_google_doc(document_id)
-        if doc_content.get("status") != "success":
-            return {
-                "error": "Failed to read document content.",
-                "status": "error"
-            }
-        
-        # Get current content and append new text
-        current_content = doc_content.get("content", "")
-        separator = "\n\n" if add_line_break and current_content.strip() else ""
-        new_full_content = current_content + separator + text
-        
-        # Replace entire document with combined content
-        return await replace_entire_doc_content(document_id, new_full_content)
-        
-    except Exception as e:
-        return {
-            "error": f"Failed to append to document: {str(e)}",
-            "status": "error"
-        }
+    return {
+        "recent_documents": _recent_documents_context["recent_documents"],
+        "last_document": _recent_documents_context["last_document"],
+        "count": len(_recent_documents_context["recent_documents"]),
+        "status": "success"
+    }
 
 def register(mcp_instance):
     """Register the Google Docs tools with the MCP server"""
     if GOOGLE_APIS_AVAILABLE:
-        # Core Docs operations
+        # Core operations (simplified)
         mcp_instance.tool()(create_google_doc)
-        mcp_instance.tool()(insert_text_to_doc)
+        mcp_instance.tool()(rewrite_last_doc)
+        mcp_instance.tool()(rewrite_document)
         mcp_instance.tool()(read_google_doc)
-        mcp_instance.tool()(replace_entire_doc_content)
-        
-        # Context-aware operations (preferred for editing)
-        mcp_instance.tool()(update_last_doc_with_content)
-        mcp_instance.tool()(append_to_last_doc)  # Fallback method
-        
-        # Context query tools
         mcp_instance.tool()(list_recent_documents)
-        mcp_instance.tool()(find_document_by_title)
         
         print("INFO: Google Docs tools registered successfully")
     else:
