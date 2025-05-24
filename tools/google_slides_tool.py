@@ -372,6 +372,189 @@ async def add_slide(
             "status": "error"
         }
 
+async def add_content_to_slide_placeholders(
+    presentation_id: str,
+    slide_id: str,
+    title_text: Optional[str] = None,
+    body_text: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Add content to existing placeholders in a slide (title and body).
+    
+    Args:
+        presentation_id: ID of the presentation (required)
+        slide_id: ID of the slide (required)
+        title_text: Text to add to title placeholder (optional)
+        body_text: Text to add to body placeholder (optional)
+    
+    Returns:
+        Dictionary containing the operation results
+    """
+    print(f"INFO: add_content_to_slide_placeholders called for slide {slide_id}")
+    
+    if not GOOGLE_APIS_AVAILABLE:
+        return {
+            "error": "Google API client libraries are not installed.",
+            "status": "error"
+        }
+    
+    try:
+        service = get_service('slides', 'v1')
+        if not service:
+            return {
+                "error": "Failed to authenticate with Google Slides API.",
+                "status": "error"
+            }
+        
+        # First, get the slide to find placeholder objects
+        presentation = service.presentations().get(presentationId=presentation_id).execute()
+        
+        # Find the specific slide
+        target_slide = None
+        for slide in presentation.get('slides', []):
+            if slide.get('objectId') == slide_id:
+                target_slide = slide
+                break
+        
+        if not target_slide:
+            return {
+                "error": f"Slide {slide_id} not found in presentation",
+                "status": "error"
+            }
+        
+        # Find placeholder objects
+        title_placeholder = None
+        body_placeholder = None
+        available_placeholders = []
+        
+        for page_element in target_slide.get('pageElements', []):
+            shape = page_element.get('shape', {})
+            placeholder = shape.get('placeholder', {})
+            
+            if placeholder:
+                placeholder_type = placeholder.get('type')
+                available_placeholders.append(placeholder_type)
+                
+                if placeholder_type == 'TITLE' and title_text:
+                    title_placeholder = page_element.get('objectId')
+                elif placeholder_type in ['BODY', 'SUBTITLE'] and body_text:
+                    body_placeholder = page_element.get('objectId')
+        
+        # Build requests to insert text into placeholders
+        requests = []
+        results = {}
+        
+        if title_placeholder and title_text:
+            requests.append({
+                'insertText': {
+                    'objectId': title_placeholder,
+                    'text': title_text
+                }
+            })
+            results['title_added'] = True
+        
+        if body_placeholder and body_text:
+            requests.append({
+                'insertText': {
+                    'objectId': body_placeholder,
+                    'text': body_text
+                }
+            })
+            results['body_added'] = True
+        
+        if not requests:
+            return {
+                "error": "No suitable placeholders found or no text provided",
+                "available_placeholders": available_placeholders,
+                "status": "error"
+            }
+        
+        # Execute the requests
+        response = service.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={'requests': requests}
+        ).execute()
+        
+        return {
+            "presentation_id": presentation_id,
+            "slide_id": slide_id,
+            "title_placeholder": title_placeholder,
+            "body_placeholder": body_placeholder,
+            "available_placeholders": available_placeholders,
+            **results,
+            "status": "success"
+        }
+        
+    except HttpError as e:
+        return {
+            "error": f"Google Slides API error: {str(e)}",
+            "status": "error"
+        }
+    except Exception as e:
+        print(f"ERROR: add_content_to_slide_placeholders failed: {str(e)}")
+        return {
+            "error": f"Tool execution failed: {str(e)}",
+            "status": "error"
+        }
+
+async def create_slide_with_content(
+    presentation_id: str,
+    slide_layout: str = "TITLE_AND_BODY",
+    title: Optional[str] = None,
+    body_content: Optional[str] = None,
+    insert_index: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Create a new slide and populate its placeholders with content in one operation.
+    This is the preferred method for creating slides with content.
+    
+    Args:
+        presentation_id: ID of the presentation (required)
+        slide_layout: Layout for the new slide (default: "TITLE_AND_BODY")
+        title: Title text for the slide (optional)
+        body_content: Body text for the slide (optional)
+        insert_index: Position to insert the slide (optional)
+    
+    Returns:
+        Dictionary containing the new slide information and content status
+    """
+    print(f"INFO: create_slide_with_content called for presentation {presentation_id}")
+    
+    # First create the slide
+    slide_result = await add_slide(
+        presentation_id=presentation_id,
+        slide_layout=slide_layout,
+        title=title,
+        insert_index=insert_index
+    )
+    
+    if slide_result.get("status") != "success":
+        return slide_result
+    
+    slide_id = slide_result["slide_id"]
+    
+    # Then add content to placeholders if provided
+    if title or body_content:
+        content_result = await add_content_to_slide_placeholders(
+            presentation_id=presentation_id,
+            slide_id=slide_id,
+            title_text=title,
+            body_text=body_content
+        )
+        
+        if content_result.get("status") == "success":
+            slide_result.update({
+                "content_added": True,
+                "title_filled": content_result.get("title_added", False),
+                "body_filled": content_result.get("body_added", False),
+                "available_placeholders": content_result.get("available_placeholders", [])
+            })
+        else:
+            slide_result["content_warning"] = content_result.get("error", "Failed to add content to placeholders")
+            slide_result["available_placeholders"] = content_result.get("available_placeholders", [])
+    
+    return slide_result
+
 async def add_text_to_slide(
     presentation_id: str,
     slide_id: str,
@@ -383,6 +566,8 @@ async def add_text_to_slide(
 ) -> Dict[str, Any]:
     """
     Add a text box to a specific slide in a Google Slides presentation.
+    Note: This creates a new text box rather than filling placeholders.
+    For filling placeholders, use add_content_to_slide_placeholders or create_slide_with_content.
     
     Args:
         presentation_id: ID of the presentation (required)
@@ -471,17 +656,18 @@ async def add_text_to_slide(
         }
 
 async def add_slide_to_last_presentation(
-    slide_layout: str = "BLANK",
+    slide_layout: str = "TITLE_AND_BODY",
     title: Optional[str] = None,
-    text_content: Optional[str] = None
+    body_content: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Add a slide to the most recently created presentation.
+    Add a slide with content to the most recently created presentation.
+    This is the preferred method for adding slides with content to recent presentations.
     
     Args:
-        slide_layout: Layout for the new slide (default: "BLANK")
+        slide_layout: Layout for the new slide (default: "TITLE_AND_BODY")
         title: Title for the slide (optional)
-        text_content: Text content to add to the slide (optional)
+        body_content: Body text content for the slide (optional)
     
     Returns:
         Dictionary containing the new slide information
@@ -490,48 +676,124 @@ async def add_slide_to_last_presentation(
     
     if not _recent_presentations_context["last_presentation"]:
         return {
-            "error": "No recent presentation found. Please create a presentation first or use add_slide with a specific presentation ID.",
+            "error": "No recent presentation found. Please create a presentation first or use create_slide_with_content with a specific presentation ID.",
             "status": "error"
         }
     
     presentation_id = _recent_presentations_context["last_presentation"]["id"]
     
-    # Add the slide
-    slide_result = await add_slide(
+    # Use the new create_slide_with_content function
+    slide_result = await create_slide_with_content(
         presentation_id=presentation_id,
         slide_layout=slide_layout,
-        title=title
+        title=title,
+        body_content=body_content
     )
     
-    if slide_result.get("status") != "success":
-        return slide_result
-    
-    slide_id = slide_result["slide_id"]
-    
-    # Add text content if provided
-    if text_content:
-        text_result = await add_text_to_slide(
-            presentation_id=presentation_id,
-            slide_id=slide_id,
-            text=text_content,
-            x=100,
-            y=200,  # Position below title area
-            width=500,
-            height=200
-        )
-        
-        if text_result.get("status") == "success":
-            slide_result["text_added"] = True
-        else:
-            slide_result["text_warning"] = "Failed to add text content"
-    
-    slide_result["added_to"] = {
-        "presentation_id": presentation_id,
-        "title": _recent_presentations_context["last_presentation"]["title"],
-        "url": _recent_presentations_context["last_presentation"]["url"]
-    }
+    if slide_result.get("status") == "success":
+        slide_result["added_to"] = {
+            "presentation_id": presentation_id,
+            "title": _recent_presentations_context["last_presentation"]["title"],
+            "url": _recent_presentations_context["last_presentation"]["url"]
+        }
     
     return slide_result
+
+async def get_slide_info(
+    presentation_id: str,
+    slide_id: str
+) -> Dict[str, Any]:
+    """
+    Get information about a specific slide, including its placeholders and elements.
+    
+    Args:
+        presentation_id: ID of the presentation (required)
+        slide_id: ID of the slide (required)
+    
+    Returns:
+        Dictionary containing slide information and structure
+    """
+    print(f"INFO: get_slide_info called for slide {slide_id}")
+    
+    if not GOOGLE_APIS_AVAILABLE:
+        return {
+            "error": "Google API client libraries are not installed.",
+            "status": "error"
+        }
+    
+    try:
+        service = get_service('slides', 'v1')
+        if not service:
+            return {
+                "error": "Failed to authenticate with Google Slides API.",
+                "status": "error"
+            }
+        
+        presentation = service.presentations().get(presentationId=presentation_id).execute()
+        
+        # Find the specific slide
+        target_slide = None
+        for slide in presentation.get('slides', []):
+            if slide.get('objectId') == slide_id:
+                target_slide = slide
+                break
+        
+        if not target_slide:
+            return {
+                "error": f"Slide {slide_id} not found in presentation",
+                "status": "error"
+            }
+        
+        # Analyze slide elements
+        placeholders = []
+        text_boxes = []
+        shapes = []
+        
+        for page_element in target_slide.get('pageElements', []):
+            element_id = page_element.get('objectId')
+            
+            if 'shape' in page_element:
+                shape = page_element['shape']
+                
+                if 'placeholder' in shape:
+                    placeholder = shape['placeholder']
+                    placeholders.append({
+                        "id": element_id,
+                        "type": placeholder.get('type'),
+                        "index": placeholder.get('index')
+                    })
+                elif shape.get('shapeType') == 'TEXT_BOX':
+                    text_boxes.append({
+                        "id": element_id,
+                        "type": "TEXT_BOX"
+                    })
+                else:
+                    shapes.append({
+                        "id": element_id,
+                        "type": shape.get('shapeType')
+                    })
+        
+        return {
+            "presentation_id": presentation_id,
+            "slide_id": slide_id,
+            "placeholders": placeholders,
+            "text_boxes": text_boxes,
+            "shapes": shapes,
+            "total_elements": len(target_slide.get('pageElements', [])),
+            "status": "success"
+        }
+        
+    except HttpError as e:
+        return {
+            "error": f"Google Slides API error: {str(e)}",
+            "status": "error"
+        }
+    except Exception as e:
+        print(f"ERROR: get_slide_info failed: {str(e)}")
+        return {
+            "error": f"Tool execution failed: {str(e)}",
+            "status": "error"
+        }
 
 def register(mcp_instance):
     """Register the Google Slides tools with the MCP server"""
@@ -539,8 +801,17 @@ def register(mcp_instance):
         # Core Slides operations
         mcp_instance.tool()(create_google_slides)
         mcp_instance.tool()(add_slide)
-        mcp_instance.tool()(add_text_to_slide)
+        
+        # NEW: Preferred methods for working with placeholders
+        mcp_instance.tool()(create_slide_with_content)
+        mcp_instance.tool()(add_content_to_slide_placeholders)
         mcp_instance.tool()(add_slide_to_last_presentation)
+        
+        # Legacy text box method (still useful for custom positioning)
+        mcp_instance.tool()(add_text_to_slide)
+        
+        # Utility functions
+        mcp_instance.tool()(get_slide_info)
         
         # Context query tools
         mcp_instance.tool()(list_recent_presentations)
