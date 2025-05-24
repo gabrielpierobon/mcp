@@ -1,551 +1,726 @@
-# Available MCP Server Tools
+# MCP Server Tools Documentation
 
-This document provides an overview of the tools currently available in this MCP server.
+This document provides comprehensive documentation for all tools available in the MCP server. Each tool is organized by category with detailed parameter descriptions, return values, and usage examples.
 
-## 1. Brave Search Tools
+## Table of Contents
 
-These tools leverage the Brave Search API to perform web and local searches. Requires the `BRAVE_API_KEY` environment variable to be set.
+1. [Web Search Tools](#1-web-search-tools)
+2. [Weather Tools](#2-weather-tools) 
+3. [Calculator Tools](#3-calculator-tools)
+4. [Web Crawling Tools](#4-web-crawling-tools)
+5. [Airtable Tools](#5-airtable-tools)
+6. [Google Workspace Tools](#6-google-workspace-tools)
+
+---
+
+## 1. Web Search Tools
+
+These tools leverage the Brave Search API to perform web and local searches. Requires the `BRAVE_API_KEY` environment variable.
 
 ### 1.1. `brave_web_search`
 
-*   **Description:** Executes web searches using the Brave Search API, including results from web pages, news, and videos. Supports pagination.
-*   **Arguments:**
-    *   `query` (str, required): The search terms.
-    *   `count` (Optional[int], optional, default: 10): Number of results per page (max 20).
-    *   `offset` (Optional[int], optional, default: 0): Pagination offset (max 9, meaning up to 10 pages if count is 10, as offset is 0-indexed).
-*   **Returns:** (Dict[str, Any])
-    *   `query`: The original search query.
-    *   `results`: A list combining web, news, and video results. Each result is a dictionary with details like title, URL, description, etc.
-    *   `total_count`: Estimated total web results available.
-    *   `news_count`: Number of news results returned in this batch.
-    *   `videos_count`: Number of video results returned in this batch.
-    *   `web_count`: Number of web results returned in this batch.
-    *   `mixed`: Mixed results object from Brave API.
-    *   `search_info`: Contains `available_sections` (list of result types found, e.g., `web`, `news`).
-    *   `status`: "success" or "error".
-    *   `error` (if status is "error"): Description of the error.
-    *   `details` (if status is "error" and API error): Raw error text from API.
-*   **Environment Variables:**
-    *   `BRAVE_API_KEY`: Your Brave Search API subscription token.
+**Description:** Execute web searches using Brave Search API with pagination and filtering.
+
+**Arguments:**
+- `query` (str, required): Search terms
+- `count` (Optional[int], default: 10): Results per page (max 20)
+- `offset` (Optional[int], default: 0): Pagination offset (max 9)
+
+**Returns:** (Dict[str, Any])
+- `query`: Original search query
+- `results`: Combined web, news, and video results
+- `total_count`: Estimated total web results available
+- `news_count`: Number of news results in batch
+- `videos_count`: Number of video results in batch
+- `web_count`: Number of web results in batch
+- `mixed`: Mixed results object from Brave API
+- `search_info`: Available result sections
+- `status`: "success" or "error"
+
+**Environment Variables:**
+- `BRAVE_API_KEY`: Brave Search API subscription token
 
 ### 1.2. `brave_local_search`
 
-*   **Description:** Searches for local businesses and services using the Brave Search API. If no local results are found for the query, it automatically falls back to performing a `brave_web_search` with the same query and count.
-*   **Arguments:**
-    *   `query` (str, required): The local search terms (e.g., "pizza near me", "coffee shops in downtown").
-    *   `count` (Optional[int], optional, default: 10): Number of results to return (max 20).
-*   **Returns:** (Dict[str, Any])
-    *   If local results are found:
-        *   `query`: The original search query.
-        *   `places`: A list of local place results. Each place is a dictionary with details like name, address, phone, website, etc.
-        *   `total_count`: Number of local places returned.
-        *   `status`: "success".
-    *   If no local results are found (fallback to `brave_web_search`):
-        *   The same structure as returned by `brave_web_search`.
-    *   If an error occurs:
-        *   `error`: Description of the error.
-        *   `details` (if API error): Raw error text from API.
-        *   `status`: "error".
-*   **Environment Variables:**
-    *   `BRAVE_API_KEY`: Your Brave Search API subscription token.
+**Description:** Search for local businesses and services. Automatically falls back to web search if no local results found.
 
-## 2. `get_weather`
+**Arguments:**
+- `query` (str, required): Local search terms
+- `count` (Optional[int], default: 10): Number of results (max 20)
 
-*   **Description:** Fetches the current and forecast weather for any location in the world using the Open-Meteo API.
-*   **Arguments:**
-    *   `location` (str, optional, default: "Madrid, Spain"): City name or address (e.g., "New York", "Tokyo, Japan", "Paris, France").
-*   **Returns:** (Dict[str, Any])
-    *   `location`: The resolved location name (e.g., "Madrid, Spain").
-    *   `coordinates`: Dictionary with `latitude` and `longitude`.
-    *   `current_weather`: Dictionary with:
-        *   `temperature` (float)
-        *   `condition` (str): Textual description of weather (e.g., "Clear sky").
-        *   `wind_speed` (float)
-        *   `units`: Dictionary with `temperature` unit (e.g., "°C") and `wind_speed` unit (e.g., "km/h").
-    *   `forecast`: A list of dictionaries for upcoming weather, typically in 6-hour intervals for the next 48 hours. Each entry contains:
-        *   `time` (str): Forecast time in "YYYY-MM-DD HH:MM ±HHMM" format (includes UTC offset).
-        *   `temperature` (float)
-        *   `condition` (str)
-    *   `source`: "Open-Meteo API".
-    *   `status`: "success" or "error".
-    *   `error` (if status is "error"): Description of the error.
-*   **Environment Variables:** None directly, but relies on public Open-Meteo APIs.
+**Returns:** (Dict[str, Any])
+- If local results found:
+  - `query`: Original search query
+  - `places`: List of local place results
+  - `total_count`: Number of local places returned
+- If fallback to web search: Same structure as `brave_web_search`
+- If error: `error` and `status` fields
 
-## 3. `calculator`
+**Environment Variables:**
+- `BRAVE_API_KEY`: Brave Search API subscription token
 
-*   **Description:** Performs basic arithmetic operations.
-*   **Arguments:**
-    *   `operation` (str, required): The operation to perform. Accepts "add", "+", "subtract", "-", "multiply", "*", "divide", "/". Case-insensitive.
-    *   `num1` (float, required): The first number.
-    *   `num2` (float, required): The second number.
-*   **Returns:** (Dict[str, Any])
-    *   `result` (float, if successful): The result of the calculation.
-    *   `description` (str, if successful): A string describing the operation performed (e.g., "10 + 5 = 15").
-    *   `status`: "success" or "error".
-    *   `error` (if status is "error"): Description of the error (e.g., "Division by zero is not allowed", "Unknown operation: ...").
-*   **Environment Variables:** None.
+---
 
-## 4. Web Crawler Tools
+## 2. Weather Tools
 
-These tools leverage Crawl4AI, an open-source LLM-friendly web crawler to extract content from websites. Requires `crawl4ai` to be installed.
+### 2.1. `get_weather`
+
+**Description:** Fetch current and forecast weather for any location worldwide using Open-Meteo API.
+
+**Arguments:**
+- `location` (str, optional, default: "Madrid, Spain"): City name or address
+
+**Returns:** (Dict[str, Any])
+- `location`: Resolved location name
+- `coordinates`: Dictionary with `latitude` and `longitude`
+- `current_weather`: Dictionary with:
+  - `temperature` (float)
+  - `condition` (str): Weather description
+  - `wind_speed` (float)
+  - `units`: Temperature and wind speed units
+- `forecast`: List of upcoming weather (6-hour intervals, 48 hours)
+- `source`: "Open-Meteo API"
+- `status`: "success" or "error"
+
+**Environment Variables:** None (uses public APIs)
+
+---
+
+## 3. Calculator Tools
+
+### 3.1. `calculator`
+
+**Description:** Perform basic arithmetic operations with error handling.
+
+**Arguments:**
+- `operation` (str, required): Operation type ("add", "+", "subtract", "-", "multiply", "*", "divide", "/")
+- `num1` (float, required): First number
+- `num2` (float, required): Second number
+
+**Returns:** (Dict[str, Any])
+- `result` (float): Calculation result
+- `description` (str): Operation description
+- `status`: "success" or "error"
+- `error` (if error): Error description
+
+**Environment Variables:** None
+
+---
+
+## 4. Web Crawling Tools
+
+These tools use Crawl4AI for LLM-friendly web content extraction. Requires `crawl4ai` installation.
 
 ### 4.1. `crawl_webpage`
 
-*   **Description:** Crawls a single webpage and extracts its content in various formats (markdown, HTML, or plain text).
-*   **Arguments:**
-    *   `url` (str, required): URL of the webpage to crawl.
-    *   `output_format` (str, optional, default: "markdown"): Format of the output - "markdown", "html", "text", or "all".
-    *   `include_links` (bool, optional, default: True): Whether to include links in the output.
-    *   `include_images` (bool, optional, default: True): Whether to include images in the output.
-    *   `headless` (bool, optional, default: True): Whether to run the browser in headless mode.
-    *   `extract_main_content` (bool, optional, default: True): Whether to extract only the main content or the entire page.
-    *   `cache_enabled` (bool, optional, default: True): Whether to use cache if available.
-    *   `wait_for_selector` (str, optional): CSS selector to wait for before extracting content.
-    *   `wait_time` (int, optional): Additional time in milliseconds to wait after page load.
-*   **Returns:** (Dict[str, Any])
-    *   `url`: The URL that was crawled.
-    *   `status_code`: HTTP status code of the response.
-    *   `title`: Title of the webpage.
-    *   `markdown`: Extracted content in Markdown format (if requested).
-    *   `html`: Extracted content in HTML format (if requested).
-    *   `text`: Extracted content in plain text format (if requested).
-    *   `links`: Dictionary of internal and external links (if include_links is True).
-    *   `images`: List of images found on the page (if include_images is True).
-    *   `status`: "success" or "error".
-    *   `error` (if status is "error"): Description of the error.
-*   **Environment Variables:** None directly, uses Crawl4AI library.
+**Description:** Crawl a single webpage and extract content in various formats.
+
+**Arguments:**
+- `url` (str, required): URL to crawl
+- `output_format` (str, default: "markdown"): "markdown", "html", "text", or "all"
+- `include_links` (bool, default: True): Include links in output
+- `include_images` (bool, default: True): Include images in output
+- `headless` (bool, default: True): Run browser in headless mode
+- `extract_main_content` (bool, default: True): Extract main content only
+- `cache_enabled` (bool, default: True): Use cache if available
+- `wait_for_selector` (str, optional): CSS selector to wait for
+- `wait_time` (int, optional): **DEPRECATED** - Additional wait time
+
+**Returns:** (Dict[str, Any])
+- `url`: Crawled URL
+- `status_code`: HTTP status code
+- `title`: Page title
+- `markdown`: Content in Markdown (if requested)
+- `html`: Content in HTML (if requested)
+- `text`: Content in plain text (if requested)
+- `links`: Dictionary of links (if include_links)
+- `images`: List of images (if include_images)
+- `metadata`: Page metadata
+- `status`: "success" or "error"
 
 ### 4.2. `crawl_multiple_webpages`
 
-*   **Description:** Crawls multiple webpages in parallel and extracts their content.
-*   **Arguments:**
-    *   `urls` (List[str], required): List of URLs to crawl.
-    *   `output_format` (str, optional, default: "markdown"): Format of the output - "markdown", "html", "text", or "all".
-    *   `include_links` (bool, optional, default: True): Whether to include links in the output.
-    *   `include_images` (bool, optional, default: True): Whether to include images in the output.
-    *   `headless` (bool, optional, default: True): Whether to run the browser in headless mode.
-    *   `extract_main_content` (bool, optional, default: True): Whether to extract only the main content or the entire page.
-    *   `max_concurrent` (int, optional, default: 5): Maximum number of concurrent crawls.
-*   **Returns:** (Dict[str, Any])
-    *   `results`: Dictionary with URLs as keys and their respective crawl results as values.
-    *   `count`: Total number of URLs processed.
-    *   `successful`: Number of successful crawls.
-    *   `failed`: Number of failed crawls.
-    *   `status`: "success" or "error".
-    *   `error` (if status is "error"): Description of the error.
-*   **Environment Variables:** None directly, uses Crawl4AI library.
+**Description:** Crawl multiple webpages in parallel with concurrency control.
+
+**Arguments:**
+- `urls` (List[str], required): List of URLs to crawl
+- `output_format` (str, default: "markdown"): Format for all pages
+- `include_links` (bool, default: True): Include links
+- `include_images` (bool, default: True): Include images  
+- `headless` (bool, default: True): Headless browser mode
+- `extract_main_content` (bool, default: True): Main content only
+- `max_concurrent` (int, default: 5): Maximum concurrent crawls
+
+**Returns:** (Dict[str, Any])
+- `results`: Dictionary with URLs as keys, crawl results as values
+- `count`: Total URLs processed
+- `successful`: Number of successful crawls
+- `failed`: Number of failed crawls
+- `status`: "success" or "error"
 
 ### 4.3. `extract_structured_data`
 
-*   **Description:** Extracts structured data from a webpage using CSS selectors.
-*   **Arguments:**
-    *   `url` (str, required): URL of the webpage to crawl.
-    *   `schema` (Dict[str, Any], required): Schema defining the CSS selectors for data extraction.
-    *   `headless` (bool, optional, default: True): Whether to run the browser in headless mode.
-    *   `wait_for_selector` (str, optional): CSS selector to wait for before extracting data.
-*   **Returns:** (Dict[str, Any])
-    *   `url`: The URL that was crawled.
-    *   `data`: The extracted structured data.
-    *   `status`: "success" or "error".
-    *   `error` (if status is "error"): Description of the error.
-*   **Environment Variables:** None directly, uses Crawl4AI library.
-*   **Schema Example:**
-    ```json
-    {
-        "name": "Products",
-        "baseSelector": ".product-item",
-        "fields": [
-            {"name": "title", "selector": "h2", "type": "text"},
-            {"name": "price", "selector": ".price", "type": "text"},
-            {"name": "url", "selector": "a", "type": "attribute", "attribute": "href"}
-        ]
-    }
-    ```
+**Description:** Extract structured data using CSS selectors.
 
-## 5. Airtable MCP Tools
+**Arguments:**
+- `url` (str, required): URL to crawl
+- `schema` (Dict[str, Any], required): CSS selector schema
+- `headless` (bool, default: True): Headless browser mode
+- `wait_for_selector` (str, optional): Wait for selector
 
-These tools enable AI agents to interact with Airtable bases, tables, and records. Requires the `AIRTABLE_PERSONAL_ACCESS_TOKEN` environment variable to be set.
+**Schema Example:**
+```json
+{
+    "name": "Products",
+    "baseSelector": ".product-item",
+    "fields": [
+        {"name": "title", "selector": "h2", "type": "text"},
+        {"name": "price", "selector": ".price", "type": "text"},
+        {"name": "url", "selector": "a", "type": "attribute", "attribute": "href"}
+    ]
+}
+```
+
+**Returns:** (Dict[str, Any])
+- `url`: Crawled URL
+- `data`: Extracted structured data
+- `status`: "success" or "error"
+
+**Environment Variables:** None (uses Crawl4AI library)
+
+---
+
+## 5. Airtable Tools
+
+Comprehensive Airtable integration requiring `AIRTABLE_PERSONAL_ACCESS_TOKEN` environment variable.
 
 ### 5.1. Base Management Tools
 
 #### 5.1.1. `list_airtable_bases`
 
-*   **Description:** Lists all Airtable bases accessible with your Personal Access Token.
-*   **Arguments:** None.
-*   **Returns:** (Dict[str, Any])
-    *   `bases`: List of base objects with `id`, `name`, and `permissionLevel`.
-    *   `offset`: Pagination offset (if applicable).
-    *   `status`: "success" or "error".
-*   **Environment Variables:**
-    *   `AIRTABLE_PERSONAL_ACCESS_TOKEN`: Your Airtable Personal Access Token.
+**Description:** List all accessible Airtable bases.
+
+**Arguments:** None
+
+**Returns:** (Dict[str, Any])
+- `bases`: List of base objects with `id`, `name`, `permissionLevel`
+- `offset`: Pagination offset
+- `status`: "success" or "error"
 
 #### 5.1.2. `get_base_schema`
 
-*   **Description:** Gets the schema (tables and fields) of an Airtable base.
-*   **Arguments:**
-    *   `base_id` (str, required): ID of the base to get schema for.
-*   **Returns:** (Dict[str, Any])
-    *   `base_id`: The base ID.
-    *   `tables`: List of table objects with fields, views, and metadata.
-    *   `status`: "success" or "error".
+**Description:** Get schema (tables and fields) of an Airtable base.
+
+**Arguments:**
+- `base_id` (str, required): Base ID
+
+**Returns:** (Dict[str, Any])
+- `base_id`: The base ID
+- `tables`: List of table objects with fields and metadata
+- `status`: "success" or "error"
 
 #### 5.1.3. `get_base_by_name`
 
-*   **Description:** Get base information by name instead of requiring the base ID. Useful for user-friendly queries.
-*   **Arguments:**
-    *   `base_name` (str, required): Name of the base (e.g., "Storyteller").
-*   **Returns:** (Dict[str, Any])
-    *   `base_name`: The base name.
-    *   `base_id`: The base ID.
-    *   `permission_level`: User's permission level on this base.
-    *   `status`: "success" or "error".
-    *   `available_bases`: List of available base names (if base not found).
+**Description:** Get base information by name instead of ID.
+
+**Arguments:**
+- `base_name` (str, required): Base name (e.g., "Storyteller")
+
+**Returns:** (Dict[str, Any])
+- `base_name`: The base name
+- `base_id`: The base ID
+- `permission_level`: User's permission level
+- `available_bases`: List of available names (if not found)
+- `status`: "success" or "error"
 
 #### 5.1.4. `validate_base_and_table`
 
-*   **Description:** Validates that a base exists and contains the specified table. Helpful for error prevention.
-*   **Arguments:**
-    *   `base_name` (str, required): Name of the base.
-    *   `table_name` (str, required): Name of the table.
-*   **Returns:** (Dict[str, Any])
-    *   `base_name`: The base name.
-    *   `base_id`: The base ID.
-    *   `table_name`: The table name.
-    *   `table_id`: The table ID.
-    *   `table_fields`: List of field names in the table.
-    *   `available_tables`: List of available table names (if table not found).
-    *   `validation`: "success" or error details.
-    *   `status`: "success" or "error".
+**Description:** Validate base and table existence.
 
-### 5.2. Record Querying Tools
+**Arguments:**
+- `base_name` (str, required): Base name
+- `table_name` (str, required): Table name
+
+**Returns:** (Dict[str, Any])
+- `base_name`, `base_id`, `table_name`, `table_id`
+- `table_fields`: List of field names
+- `available_tables`: Available table names (if error)
+- `validation`: "success" or error details
+- `status`: "success" or "error"
+
+### 5.2. Record Operations
 
 #### 5.2.1. `list_records`
 
-*   **Description:** General-purpose tool to list records from a specific table with advanced filtering, sorting, and field selection.
-*   **Arguments:**
-    *   `base_id` (str, required): ID of the base.
-    *   `table_name` (str, required): Name of the table.
-    *   `fields` (Optional[List[str]]): List of field names to return (returns all if not specified).
-    *   `filter_formula` (Optional[str]): Airtable formula to filter records (e.g., `{Status} = 'Active'`).
-    *   `max_records` (Optional[int], default: 100): Maximum number of records to return (max: 100).
-    *   `sort` (Optional[List[Dict[str, str]]]): Sort objects `[{"field": "FieldName", "direction": "asc"}]`.
-    *   `view` (Optional[str]): Name of the view to use.
-*   **Returns:** (Dict[str, Any])
-    *   `base_id`: The base ID.
-    *   `table_name`: The table name.
-    *   `records`: List of record objects with `id`, `fields`, and `createdTime`.
-    *   `count`: Number of records returned.
-    *   `filter_used`: The filter formula applied (if any).
-    *   `status`: "success" or "error".
+**Description:** List records with advanced filtering and sorting.
+
+**Arguments:**
+- `base_id` (str, required): Base ID
+- `table_name` (str, required): Table name
+- `fields` (Optional[List[str]]): Field names to return
+- `filter_formula` (Optional[str]): Airtable filter formula
+- `max_records` (Optional[int], default: 100): Maximum records (max 100)
+- `sort` (Optional[List[Dict[str, str]]]): Sort objects
+- `view` (Optional[str]): View name to use
+
+**Returns:** (Dict[str, Any])
+- `base_id`, `table_name`: Identifiers
+- `records`: List of record objects with `id`, `fields`, `createdTime`
+- `count`: Number of records returned
+- `filter_used`: Applied filter formula
+- `status`: "success" or "error"
 
 #### 5.2.2. `list_records_by_base_name`
 
-*   **Description:** User-friendly version of `list_records` that accepts base name instead of base ID.
-*   **Arguments:**
-    *   `base_name` (str, required): Name of the base (e.g., "Storyteller").
-    *   `table_name` (str, required): Name of the table.
-    *   `fields` (Optional[List[str]]): List of field names to return.
-    *   `filter_formula` (Optional[str]): Airtable formula to filter records.
-    *   `max_records` (Optional[int], default: 100): Maximum number of records to return.
-    *   `sort` (Optional[List[Dict[str, str]]]): Sort objects.
-    *   `view` (Optional[str]): Name of the view to use.
-*   **Returns:** Same as `list_records`.
-*   **Example Usage:**
-    ```
-    "Show me all Spanish stories from my Storyteller base"
-    "List themes from the Themes table in Storyteller"
-    ```
+**Description:** User-friendly version accepting base name instead of ID.
+
+**Arguments:** Same as `list_records` but uses `base_name` instead of `base_id`
+
+**Returns:** Same as `list_records`
+
+**Example Usage:**
+- "Show me all Spanish stories from my Storyteller base"
+- "List themes from the Themes table in Storyteller"
 
 #### 5.2.3. `search_records`
 
-*   **Description:** Search for records by a specific field value with flexible matching options.
-*   **Arguments:**
-    *   `base_id` (str, required): ID of the base.
-    *   `table_name` (str, required): Name of the table.
-    *   `search_field` (str, required): Name of the field to search in.
-    *   `search_value` (str, required): Value to search for.
-    *   `additional_fields` (Optional[List[str]]): Additional fields to return in results.
-    *   `match_type` (Optional[str], default: "exact"): Type of match - "exact", "contains", "starts_with".
-*   **Returns:** (Dict[str, Any])
-    *   Same structure as `list_records` but filtered to matching records.
+**Description:** Search records by field value with flexible matching.
+
+**Arguments:**
+- `base_id` (str, required): Base ID
+- `table_name` (str, required): Table name
+- `search_field` (str, required): Field to search in
+- `search_value` (str, required): Value to search for
+- `additional_fields` (Optional[List[str]]): Additional fields to return
+- `match_type` (Optional[str], default: "exact"): "exact", "contains", "starts_with"
+
+**Returns:** Same structure as `list_records` but filtered
 
 #### 5.2.4. `search_records_by_base_name`
 
-*   **Description:** User-friendly version of `search_records` that accepts base name instead of base ID.
-*   **Arguments:**
-    *   `base_name` (str, required): Name of the base.
-    *   `table_name` (str, required): Name of the table.
-    *   `search_field` (str, required): Name of the field to search in.
-    *   `search_value` (str, required): Value to search for.
-    *   `additional_fields` (Optional[List[str]]): Additional fields to return.
-    *   `match_type` (Optional[str], default: "exact"): Type of match.
-*   **Returns:** Same as `search_records`.
-*   **Example Usage:**
-    ```
-    "Find all users with Spanish language preference in Storyteller"
-    "Search for stories with 'adventure' theme in my PublicStories table"
-    ```
+**Description:** User-friendly search accepting base name.
+
+**Arguments:** Same as `search_records` but uses `base_name`
+
+**Example Usage:**
+- "Find all users with Spanish language preference in Storyteller"
+- "Search for stories with 'adventure' theme in PublicStories table"
 
 #### 5.2.5. `get_record_by_id`
 
-*   **Description:** Get a specific record by its Airtable record ID.
-*   **Arguments:**
-    *   `base_id` (str, required): ID of the base.
-    *   `table_name` (str, required): Name of the table.
-    *   `record_id` (str, required): ID of the record to retrieve.
-*   **Returns:** (Dict[str, Any])
-    *   `base_id`: The base ID.
-    *   `table_name`: The table name.
-    *   `record`: Record object with `id`, `fields`, and `createdTime`.
-    *   `status`: "success" or "error".
+**Description:** Get specific record by ID.
+
+**Arguments:**
+- `base_id` (str, required): Base ID
+- `table_name` (str, required): Table name
+- `record_id` (str, required): Record ID
+
+**Returns:** (Dict[str, Any])
+- `base_id`, `table_name`: Identifiers
+- `record`: Record object with `id`, `fields`, `createdTime`
+- `status`: "success" or "error"
 
 #### 5.2.6. `count_records`
 
-*   **Description:** Count records in a table, optionally with a filter.
-*   **Arguments:**
-    *   `base_id` (str, required): ID of the base.
-    *   `table_name` (str, required): Name of the table.
-    *   `filter_formula` (Optional[str]): Airtable formula to filter records.
-*   **Returns:** (Dict[str, Any])
-    *   `base_id`: The base ID.
-    *   `table_name`: The table name.
-    *   `count`: Number of records (based on first 100 if table is larger).
-    *   `filter_used`: The filter formula applied (if any).
-    *   `status`: "success" or "error".
+**Description:** Count records with optional filtering.
 
-### 5.3. Base and Table Creation Tools
+**Arguments:**
+- `base_id` (str, required): Base ID
+- `table_name` (str, required): Table name
+- `filter_formula` (Optional[str]): Filter formula
 
-**Note:** These tools may be limited on Free Plan accounts. Table and base creation typically requires Team Plan or higher.
+**Returns:** (Dict[str, Any])
+- `base_id`, `table_name`: Identifiers
+- `count`: Number of records
+- `filter_used`: Applied filter
+- `note`: Count limitation note
+- `status`: "success" or "error"
+
+### 5.3. Base Creation Tools
+
+**Note:** May require Team Plan or higher for base/table creation.
 
 #### 5.3.1. `create_airtable_base`
 
-*   **Description:** Create a new Airtable base with optional initial tables.
-*   **Arguments:**
-    *   `name` (str, required): Name of the new base.
-    *   `workspace_id` (Optional[str]): ID of the workspace to create the base in.
-    *   `tables` (Optional[List[Dict[str, Any]]]): List of table configurations to create initially.
-*   **Returns:** (Dict[str, Any])
-    *   `base_id`: ID of the created base.
-    *   `name`: Name of the base.
-    *   `permission_level`: User's permission level.
-    *   `tables`: List of created tables.
-    *   `status`: "success" or "error".
+**Description:** Create new Airtable base with optional initial tables.
+
+**Arguments:**
+- `name` (str, required): Base name
+- `workspace_id` (Optional[str]): Workspace ID
+- `tables` (Optional[List[Dict[str, Any]]]): Initial table configurations
+
+**Returns:** (Dict[str, Any])
+- `base_id`: Created base ID
+- `name`: Base name
+- `permission_level`: User's permission level
+- `tables`: Created tables
+- `status`: "success" or "error"
 
 #### 5.3.2. `create_airtable_table`
 
-*   **Description:** Create a new table in an existing Airtable base.
-*   **Arguments:**
-    *   `base_id` (str, required): ID of the base to create the table in.
-    *   `table_name` (str, required): Name of the new table.
-    *   `description` (Optional[str]): Description of the table.
-    *   `fields` (Optional[List[Dict[str, Any]]]): List of field configurations.
-*   **Returns:** (Dict[str, Any])
-    *   `table_id`: ID of the created table.
-    *   `name`: Name of the table.
-    *   `description`: Description of the table.
-    *   `fields`: List of created fields.
-    *   `status`: "success" or "error".
+**Description:** Create new table in existing base.
+
+**Arguments:**
+- `base_id` (str, required): Base ID
+- `table_name` (str, required): Table name
+- `description` (Optional[str]): Table description
+- `fields` (Optional[List[Dict[str, Any]]]): Field configurations
+
+**Returns:** (Dict[str, Any])
+- `table_id`: Created table ID
+- `name`, `description`: Table details
+- `fields`: Created fields
+- `views`: Table views
+- `status`: "success" or "error"
 
 #### 5.3.3. `create_base_with_template`
 
-*   **Description:** Create a new Airtable base using a predefined template.
-*   **Arguments:**
-    *   `name` (str, required): Name of the new base.
-    *   `template` (str, required): Template type - "project_management", "crm", "inventory", "event_planning", "content_calendar".
-    *   `workspace_id` (Optional[str]): ID of the workspace to create the base in.
-*   **Returns:** Same as `create_airtable_base`.
+**Description:** Create base using predefined template.
+
+**Arguments:**
+- `name` (str, required): Base name
+- `template` (str, required): Template type
+- `workspace_id` (Optional[str]): Workspace ID
+
+**Available Templates:**
+- `"project_management"`: Projects and tasks with status tracking
+- `"crm"`: Contacts, deals, and sales pipeline
+- `"inventory"`: Product tracking with stock levels
+- `"event_planning"`: Events and task management
+- `"content_calendar"`: Content planning and scheduling
+
+**Returns:** Same as `create_airtable_base`
+
+**Environment Variables:**
+- `AIRTABLE_PERSONAL_ACCESS_TOKEN`: Airtable Personal Access Token
+
+---
 
 ## 6. Google Workspace Tools
 
-These tools enable AI agents to create and edit Google Sheets, Docs, and Slides. Requires Google API authentication setup.
+Comprehensive Google Workspace integration with OAuth2 authentication.
 
-### 6.1. Google Sheets Tools
+### 6.1. Authentication Setup
 
-#### 6.1.1. `create_google_sheet`
+**Required Environment Variables:**
+- `GOOGLE_CREDENTIALS_FILE` (default: "credentials.json"): OAuth2 credentials
+- `GOOGLE_TOKEN_FILE` (default: "token.json"): Stored token (auto-created)
 
-*   **Description:** Create a new Google Spreadsheet with optional multiple sheets and sharing.
-*   **Arguments:**
-    *   `title` (str, required): Title of the new spreadsheet.
-    *   `sheet_names` (Optional[List[str]]): List of sheet names to create (defaults to ["Sheet1"]).
-    *   `share_with` (Optional[List[str]]): List of email addresses to share with.
-*   **Returns:** (Dict[str, Any])
-    *   `spreadsheet_id`: ID of the created spreadsheet.
-    *   `spreadsheet_url`: URL to access the spreadsheet.
-    *   `title`: Title of the spreadsheet.
-    *   `sheets`: List of created sheet names.
-    *   `shared_with`: List of emails shared with (if applicable).
-    *   `status`: "success" or "error".
-*   **Environment Variables:**
-    *   `GOOGLE_CREDENTIALS_FILE`: Path to Google OAuth2 credentials JSON file.
-    *   `GOOGLE_TOKEN_FILE`: Path to store OAuth2 token (auto-created).
+**Required Scopes:**
+- `https://www.googleapis.com/auth/spreadsheets`
+- `https://www.googleapis.com/auth/documents`
+- `https://www.googleapis.com/auth/presentations`
+- `https://www.googleapis.com/auth/drive`
 
-#### 6.1.2. `write_to_sheet`
+### 6.2. Google Sheets Tools
 
-*   **Description:** Write data to a Google Sheet.
-*   **Arguments:**
-    *   `spreadsheet_id` (str, required): ID of the spreadsheet.
-    *   `range_name` (str, required): A1 notation range (e.g., "Sheet1!A1:C3", "A1:B10").
-    *   `values` (List[List[Any]], required): 2D array of values to write.
-    *   `value_input_option` (str, optional): How values should be interpreted ("RAW" or "USER_ENTERED").
-*   **Returns:** (Dict[str, Any])
-    *   `spreadsheet_id`: ID of the spreadsheet.
-    *   `updated_range`: Range that was updated.
-    *   `updated_rows`: Number of rows updated.
-    *   `updated_columns`: Number of columns updated.
-    *   `updated_cells`: Number of cells updated.
-    *   `status`: "success" or "error".
+#### 6.2.1. `create_google_sheet`
 
-#### 6.1.3. `read_from_sheet`
+**Description:** Create new Google Spreadsheet with multiple sheets and sharing.
 
-*   **Description:** Read data from a Google Sheet.
-*   **Arguments:**
-    *   `spreadsheet_id` (str, required): ID of the spreadsheet.
-    *   `range_name` (str, required): A1 notation range to read.
-*   **Returns:** (Dict[str, Any])
-    *   `spreadsheet_id`: ID of the spreadsheet.
-    *   `range`: Range that was read.
-    *   `values`: 2D array of values from the sheet.
-    *   `row_count`: Number of rows returned.
-    *   `column_count`: Number of columns in the first row.
-    *   `status`: "success" or "error".
+**Arguments:**
+- `title` (str, required): Spreadsheet title
+- `sheet_names` (Optional[List[str]], default: ["Sheet1"]): Sheet names to create
+- `share_with` (Optional[List[str]]): Email addresses to share with
 
-### 6.2. Google Docs Tools
+**Returns:** (Dict[str, Any])
+- `spreadsheet_id`: Created spreadsheet ID
+- `spreadsheet_url`: Access URL
+- `title`: Spreadsheet title
+- `sheets`: Created sheet names
+- `shared_with`: Successfully shared emails
+- `status`: "success" or "error"
 
-#### 6.2.1. `create_google_doc`
+#### 6.2.2. `write_to_sheet`
 
-*   **Description:** Create a new Google Document.
-*   **Arguments:**
-    *   `title` (str, required): Title of the new document.
-    *   `content` (Optional[str]): Initial content for the document.
-    *   `share_with` (Optional[List[str]]): List of email addresses to share with.
-*   **Returns:** (Dict[str, Any])
-    *   `document_id`: ID of the created document.
-    *   `document_url`: URL to access the document.
-    *   `title`: Title of the document.
-    *   `content_added`: Boolean indicating if initial content was added.
-    *   `shared_with`: List of emails shared with (if applicable).
-    *   `status`: "success" or "error".
+**Description:** Write data to Google Sheet.
 
-#### 6.2.2. `insert_text_to_doc`
+**Arguments:**
+- `spreadsheet_id` (str, required): Spreadsheet ID
+- `range_name` (str, required): A1 notation range (e.g., "Sheet1!A1:C3")
+- `values` (List[List[str]], required): 2D array of values
+- `value_input_option` (str, default: "USER_ENTERED"): "RAW" or "USER_ENTERED"
 
-*   **Description:** Insert text into a Google Document at a specific position.
-*   **Arguments:**
-    *   `document_id` (str, required): ID of the document.
-    *   `text` (str, required): Text to insert.
-    *   `index` (int, optional): Position to insert text (default: 1, which is the beginning).
-*   **Returns:** (Dict[str, Any])
-    *   `document_id`: ID of the document.
-    *   `text_inserted`: Text that was inserted.
-    *   `insertion_index`: Position where text was inserted.
-    *   `revision_id`: Document revision ID.
-    *   `status`: "success" or "error".
+**Returns:** (Dict[str, Any])
+- `spreadsheet_id`: Spreadsheet ID
+- `updated_range`: Range that was updated
+- `updated_rows`, `updated_columns`, `updated_cells`: Update counts
+- `status`: "success" or "error"
 
-#### 6.2.3. `read_google_doc`
+#### 6.2.3. `read_from_sheet`
 
-*   **Description:** Read content from a Google Document.
-*   **Arguments:**
-    *   `document_id` (str, required): ID of the document.
-*   **Returns:** (Dict[str, Any])
-    *   `document_id`: ID of the document.
-    *   `title`: Title of the document.
-    *   `revision_id`: Document revision ID.
-    *   `content`: Full text content of the document.
-    *   `character_count`: Number of characters in the content.
-    *   `status`: "success" or "error".
+**Description:** Read data from Google Sheet.
 
-### 6.3. Google Slides Tools
+**Arguments:**
+- `spreadsheet_id` (str, required): Spreadsheet ID
+- `range_name` (str, required): A1 notation range
 
-#### 6.3.1. `create_google_slides`
+**Returns:** (Dict[str, Any])
+- `spreadsheet_id`: Spreadsheet ID
+- `range`: Range that was read
+- `values`: 2D array of values
+- `row_count`, `column_count`: Data dimensions
+- `status`: "success" or "error"
 
-*   **Description:** Create a new Google Slides presentation.
-*   **Arguments:**
-    *   `title` (str, required): Title of the new presentation.
-    *   `template_id` (Optional[str]): ID of a template presentation to copy from.
-    *   `share_with` (Optional[List[str]]): List of email addresses to share with.
-*   **Returns:** (Dict[str, Any])
-    *   `presentation_id`: ID of the created presentation.
-    *   `presentation_url`: URL to access the presentation.
-    *   `title`: Title of the presentation.
-    *   `created_from_template`: Template ID used (if applicable).
-    *   `shared_with`: List of emails shared with (if applicable).
-    *   `status`: "success" or "error".
+#### 6.2.4. `append_to_last_sheet`
 
-#### 6.3.2. `add_slide`
+**Description:** Append data to most recently created spreadsheet.
 
-*   **Description:** Add a new slide to a Google Slides presentation.
-*   **Arguments:**
-    *   `presentation_id` (str, required): ID of the presentation.
-    *   `slide_layout` (str, optional): Layout for the new slide ("BLANK", "TITLE_AND_BODY", "TITLE_ONLY", etc.).
-    *   `title` (Optional[str]): Title for the slide.
-*   **Returns:** (Dict[str, Any])
-    *   `presentation_id`: ID of the presentation.
-    *   `slide_id`: ID of the new slide.
-    *   `slide_layout`: Layout used for the slide.
-    *   `title`: Title of the slide (if applicable).
-    *   `status`: "success" or "error".
+**Arguments:**
+- `values` (List[List[str]], required): Values to append
+- `start_row` (Optional[int]): Starting row (auto-calculated if not provided)
+- `sheet_name` (Optional[str]): Target sheet (uses default if not provided)
 
-#### 6.3.3. `add_text_to_slide`
+**Returns:** Same as `write_to_sheet` plus `appended_to` context information
 
-*   **Description:** Add a text box to a specific slide in a Google Slides presentation.
-*   **Arguments:**
-    *   `presentation_id` (str, required): ID of the presentation.
-    *   `slide_id` (str, required): ID of the slide.
-    *   `text` (str, required): Text content to add.
-    *   `x` (float, optional): X coordinate of the text box in points (default: 100).
-    *   `y` (float, optional): Y coordinate of the text box in points (default: 100).
-    *   `width` (float, optional): Width of the text box in points (default: 400).
-    *   `height` (float, optional): Height of the text box in points (default: 100).
-*   **Returns:** (Dict[str, Any])
-    *   `presentation_id`: ID of the presentation.
-    *   `slide_id`: ID of the slide.
-    *   `text_box_id`: ID of the created text box.
-    *   `text`: Text that was added.
-    *   `position`: Dictionary with x and y coordinates.
-    *   `size`: Dictionary with width and height.
-    *   `status`: "success" or "error".
+#### 6.2.5. `append_to_sheet_by_title`
 
-### 6.4. Environment Variables
+**Description:** Append data to spreadsheet found by title search.
 
-*   **`GOOGLE_CREDENTIALS_FILE`**: Path to your Google OAuth2 credentials JSON file (default: "credentials.json").
-*   **`GOOGLE_TOKEN_FILE`**: Path to store OAuth2 token (default: "token.json", auto-created after first auth).
+**Arguments:**
+- `title_search` (str, required): Partial title to search for
+- `values` (List[List[str]], required): Values to append
+- `start_row` (Optional[int]): Starting row
+- `sheet_name` (Optional[str]): Target sheet
 
-### 6.5. Required Google API Scopes
+**Returns:** Same as `append_to_last_sheet`
 
-The Google Workspace tools require the following OAuth2 scopes:
-*   `https://www.googleapis.com/auth/spreadsheets` - Create and edit Google Sheets
-*   `https://www.googleapis.com/auth/documents` - Create and edit Google Docs
-*   `https://www.googleapis.com/auth/presentations` - Create and edit Google Slides
-*   `https://www.googleapis.com/auth/drive` - Share and manage files
+#### 6.2.6. Context Tools
 
-### 6.6. Setup Requirements
+- `list_recent_spreadsheets`: List recently created spreadsheets
+- `find_spreadsheet_by_title`: Find spreadsheet by title search
+- `clear_sheet_range`: Clear data from sheet range
 
-1. **Google Cloud Console Setup:**
-   - Create a Google Cloud project
-   - Enable Google Sheets, Docs, Slides, and Drive APIs
-   - Create OAuth2 credentials (Desktop application type)
+### 6.3. Google Docs Tools
+
+#### 6.3.1. `create_google_doc`
+
+**Description:** Create new Google Document with content.
+
+**Arguments:**
+- `title` (str, required): Document title
+- `content` (str, required): Document content
+- `share_with` (Optional[List[str]]): Email addresses to share with
+
+**Returns:** (Dict[str, Any])
+- `document_id`: Created document ID
+- `document_url`: Access URL
+- `title`: Document title
+- `content_length`: Length of added content
+- `shared_with`: Successfully shared emails
+- `status`: "success" or "error"
+
+#### 6.3.2. `rewrite_last_doc`
+
+**Description:** Completely rewrite most recently created document.
+
+**Arguments:**
+- `new_content` (str, required): New content to replace entire document
+
+**Returns:** (Dict[str, Any])
+- `document_id`: Document ID
+- `new_content_length`: Length of new content
+- `operation`: "document_rewritten"
+- `updated_document`: Context information
+- `status`: "success" or "error"
+
+#### 6.3.3. `rewrite_document`
+
+**Description:** Completely rewrite specific document.
+
+**Arguments:**
+- `document_id` (str, required): Document ID
+- `new_content` (str, required): New content
+
+**Returns:** Same as `rewrite_last_doc` without context info
+
+#### 6.3.4. `read_google_doc`
+
+**Description:** Read content from Google Document.
+
+**Arguments:**
+- `document_id` (str, required): Document ID
+
+**Returns:** (Dict[str, Any])
+- `document_id`: Document ID
+- `title`: Document title
+- `content`: Full text content
+- `character_count`: Number of characters
+- `status`: "success" or "error"
+
+#### 6.3.5. `list_recent_documents`
+
+**Description:** List recently created documents from session.
+
+**Returns:** Context information about recent documents
+
+### 6.4. Google Slides Tools
+
+#### 6.4.1. `create_google_slides`
+
+**Description:** Create new Google Slides presentation.
+
+**Arguments:**
+- `title` (str, required): Presentation title
+- `template_id` (Optional[str]): Template presentation ID to copy
+- `share_with` (Optional[List[str]]): Email addresses to share with
+
+**Returns:** (Dict[str, Any])
+- `presentation_id`: Created presentation ID
+- `presentation_url`: Access URL
+- `title`: Presentation title
+- `created_from_template`: Template ID (if used)
+- `shared_with`: Successfully shared emails
+- `status`: "success" or "error"
+
+#### 6.4.2. `create_slide_with_content` (Preferred Method)
+
+**Description:** Create slide and populate placeholders in one operation.
+
+**Arguments:**
+- `presentation_id` (str, required): Presentation ID
+- `slide_layout` (str, default: "TITLE_AND_BODY"): Slide layout
+- `title` (Optional[str]): Title for slide
+- `body_content` (Optional[str]): Body content for slide
+- `insert_index` (Optional[int]): Position to insert slide
+
+**Available Layouts:**
+- `"BLANK"`: Empty slide
+- `"TITLE_AND_BODY"`: Title with body content
+- `"TITLE_ONLY"`: Title only
+- `"SECTION_HEADER"`: Section header
+- `"TWO_COLUMNS_TEXT"`: Two text columns
+- `"MAIN_POINT"`: Main point layout
+
+**Returns:** (Dict[str, Any])
+- `presentation_id`: Presentation ID
+- `slide_id`: Created slide ID
+- `slide_layout`: Layout used
+- `title`: Slide title
+- `content_added`: Whether content was successfully added
+- `title_filled`, `body_filled`: Which placeholders were filled
+- `available_placeholders`: Available placeholder types
+- `status`: "success" or "error"
+
+#### 6.4.3. `add_slide_to_last_presentation` (Preferred Method)
+
+**Description:** Add slide with content to most recently created presentation.
+
+**Arguments:**
+- `slide_layout` (str, default: "TITLE_AND_BODY"): Slide layout
+- `title` (Optional[str]): Title for slide
+- `body_content` (Optional[str]): Body content for slide
+
+**Returns:** Same as `create_slide_with_content` plus `added_to` context information
+
+#### 6.4.4. `add_slide`
+
+**Description:** Add new slide to presentation (without content).
+
+**Arguments:**
+- `presentation_id` (str, required): Presentation ID
+- `slide_layout` (str, default: "BLANK"): Slide layout
+- `title` (Optional[str]): Title for slide
+- `insert_index` (Optional[int]): Position to insert
+
+**Returns:** (Dict[str, Any])
+- `presentation_id`: Presentation ID
+- `slide_id`: Created slide ID
+- `slide_layout`: Layout used
+- `title`: Slide title
+- `status`: "success" or "error"
+
+#### 6.4.5. `add_content_to_slide_placeholders`
+
+**Description:** Add content to existing placeholders in a slide.
+
+**Arguments:**
+- `presentation_id` (str, required): Presentation ID
+- `slide_id` (str, required): Slide ID
+- `title_text` (Optional[str]): Text for title placeholder
+- `body_text` (Optional[str]): Text for body placeholder
+
+**Returns:** (Dict[str, Any])
+- `presentation_id`: Presentation ID
+- `slide_id`: Slide ID
+- `title_placeholder`, `body_placeholder`: Placeholder object IDs
+- `available_placeholders`: Available placeholder types
+- `title_added`, `body_added`: Success flags
+- `status`: "success" or "error"
+
+#### 6.4.6. `add_text_to_slide`
+
+**Description:** Add custom text box to slide (legacy method).
+
+**Arguments:**
+- `presentation_id` (str, required): Presentation ID
+- `slide_id` (str, required): Slide ID
+- `text` (str, required): Text content
+- `x` (float, default: 100): X coordinate in points
+- `y` (float, default: 100): Y coordinate in points
+- `width` (float, default: 400): Width in points
+- `height` (float, default: 100): Height in points
+
+**Returns:** (Dict[str, Any])
+- `presentation_id`: Presentation ID
+- `slide_id`: Slide ID
+- `text_box_id`: Created text box ID
+- `text`: Added text
+- `position`: Dictionary with x, y coordinates
+- `size`: Dictionary with width, height
+- `status`: "success" or "error"
+
+#### 6.4.7. Utility Tools
+
+- `get_slide_info`: Get slide structure and placeholder information
+- `list_recent_presentations`: List recently created presentations
+- `find_presentation_by_title`: Find presentation by title search
+
+### 6.5. Google Workspace Setup Guide
+
+#### 6.5.1. Google Cloud Console Setup
+
+1. **Create Google Cloud Project**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create new project or select existing one
+
+2. **Enable APIs**
+   - Enable Google Sheets API
+   - Enable Google Docs API
+   - Enable Google Slides API
+   - Enable Google Drive API
+
+3. **Create OAuth2 Credentials**
+   - Go to "Credentials" in API & Services
+   - Click "Create Credentials" → "OAuth client ID"
+   - Choose "Desktop application" type
    - Download credentials.json file
 
-2. **Install Dependencies:**
-   ```bash
-   pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
-   ```
+#### 6.5.2. Installation Requirements
 
-3. **First-Time Authentication:**
-   - On first use, the system will open a browser for OAuth consent
-   - Sign in and grant permissions
-   - Token will be saved for future use
+```bash
+# Install Google API client libraries
+pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+```
 
-### 6.7. Usage Examples
+#### 6.5.3. First-Time Authentication
+
+On first use, the system will:
+1. Open browser for OAuth consent
+2. Prompt to sign in and grant permissions
+3. Save token for future use
+
+#### 6.5.4. Usage Examples
 
 ```python
-# Create a new spreadsheet with data
+# Create spreadsheet with data
 sheet_result = await create_google_sheet(
     title="Sales Report Q1 2024",
     sheet_names=["January", "February", "March"],
     share_with=["manager@company.com"]
 )
 
-# Add data to the spreadsheet
+# Add data to spreadsheet
 await write_to_sheet(
     spreadsheet_id=sheet_result["spreadsheet_id"],
     range_name="January!A1:D4",
@@ -557,52 +732,133 @@ await write_to_sheet(
     ]
 )
 
-# Create a document with content
+# Create document with content
 doc_result = await create_google_doc(
     title="Meeting Notes - 2024-01-15",
     content="# Meeting Notes\n\nDate: January 15, 2024\nAttendees: John, Jane, Bob\n\n",
     share_with=["team@company.com"]
 )
 
-# Create a presentation
+# Create presentation with slides
 slides_result = await create_google_slides(
     title="Q1 Results Presentation",
     share_with=["stakeholders@company.com"]
 )
 
-# Add slides and content
-slide_result = await add_slide(
-    presentation_id=slides_result["presentation_id"],
+# Add slide with content (preferred method)
+await add_slide_to_last_presentation(
     slide_layout="TITLE_AND_BODY",
-    title="Q1 Sales Results"
-)
-
-await add_text_to_slide(
-    presentation_id=slides_result["presentation_id"],
-    slide_id=slide_result["slide_id"],
-    text="• 15% increase in revenue\n• 23% more customers\n• Expanded to 3 new markets",
-    x=100,
-    y=250,
-    width=500,
-    height=200
+    title="Q1 Sales Results", 
+    body_content="• 15% increase in revenue\n• 23% more customers\n• Expanded to 3 new markets"
 )
 ```
 
-### 6.8. Best Practices
+### 6.6. Best Practices
 
-1. **Authentication:** Ensure credentials.json is kept secure and not committed to version control
-2. **Sharing:** Only share documents with necessary recipients
-3. **Error Handling:** Always check the status field in responses
-4. **Batch Operations:** For multiple operations, consider grouping them to improve performance
-5. **Permissions:** Use appropriate Google API scopes - only request what you need
+1. **Authentication**: Keep credentials.json secure and exclude from version control
+2. **Sharing**: Only share documents with necessary recipients
+3. **Error Handling**: Always check status field in responses
+4. **Batch Operations**: Group multiple operations for better performance
+5. **Context Awareness**: Use "last created" functions for workflow efficiency
 
-### 6.9. Troubleshooting
+### 6.7. Troubleshooting
 
-- **Authentication errors:** Delete token.json and re-authenticate
-- **Permission denied:** Ensure all required APIs are enabled in Google Cloud Console
-- **File not found:** Use the correct file ID from the Google Drive URL
-- **Quota exceeded:** Google APIs have daily quotas; wait 24 hours or request increase
+- **Authentication errors**: Delete token.json and re-authenticate
+- **Permission denied**: Ensure APIs are enabled in Google Cloud Console
+- **File not found**: Use correct file ID from Google Drive URL
+- **Quota exceeded**: Wait 24 hours or request quota increase
 
 ---
 
-To add a new tool or update an existing one, please refer to the `docs/server_and_tool_development.md` guide.
+## Environment Variables Summary
+
+| Tool Category | Environment Variable | Description | Required |
+|---------------|---------------------|-------------|----------|
+| Brave Search | `BRAVE_API_KEY` | Brave Search API subscription token | Yes |
+| Airtable | `AIRTABLE_PERSONAL_ACCESS_TOKEN` | Airtable Personal Access Token | Yes |
+| Google Workspace | `GOOGLE_CREDENTIALS_FILE` | Path to OAuth2 credentials JSON | Yes |
+| Google Workspace | `GOOGLE_TOKEN_FILE` | Path to store OAuth2 token | No (auto-created) |
+| Web Crawling | None | Uses Crawl4AI library | No |
+| Weather | None | Uses public Open-Meteo API | No |
+| Calculator | None | Built-in functionality | No |
+
+---
+
+## Tool Status and Availability
+
+| Tool | Status | Dependencies | Notes |
+|------|--------|--------------|--------|
+| Brave Search | ✅ Available | `httpx`, API key | Requires paid API subscription |
+| Weather | ✅ Available | `httpx` | Free public API |
+| Calculator | ✅ Available | Built-in | No external dependencies |
+| Web Crawling | ⚠️ Optional | `crawl4ai`, `playwright` | Install separately if needed |
+| Airtable | ✅ Available | `httpx`, API token | Free tier available |
+| Google Sheets | ⚠️ Optional | Google API libs, OAuth2 | Install separately if needed |
+| Google Docs | ⚠️ Optional | Google API libs, OAuth2 | Install separately if needed |
+| Google Slides | ⚠️ Optional | Google API libs, OAuth2 | Install separately if needed |
+
+---
+
+## Adding New Tools
+
+To add new tools to the MCP server:
+
+1. **Create Tool File**: Add new tool module in `tools/` directory
+2. **Implement Functions**: Create async functions with proper type hints and docstrings
+3. **Add Registration**: Include `register(mcp_instance)` function
+4. **Update Server**: Import and register in `run.py`
+5. **Update Documentation**: Add tool documentation to this file
+
+**Example Tool Structure:**
+```python
+# tools/my_new_tool.py
+from typing import Dict, Any, Optional
+
+async def my_tool_function(
+    param1: str,
+    param2: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Description of what this tool does.
+    
+    Args:
+        param1: Description of required parameter
+        param2: Description of optional parameter
+        
+    Returns:
+        Dictionary containing results and status
+    """
+    try:
+        # Tool implementation
+        result = f"Processed: {param1}"
+        return {
+            "result": result,
+            "param2_used": param2,
+            "status": "success"
+        }
+    except Exception as e:
+        return {
+            "error": f"Tool execution failed: {str(e)}",
+            "status": "error"
+        }
+
+def register(mcp_instance):
+    """Register tool with MCP server"""
+    mcp_instance.tool()(my_tool_function)
+```
+
+For detailed development guidance, see `docs/server_and_tool_development.md`.
+
+---
+
+## Support and Documentation
+
+- **Development Guide**: `docs/server_and_tool_development.md`
+- **MCP Protocol**: `docs/mcp.md`
+- **System Prompts**: `docs/prompt_guide.md`
+- **FastMCP Documentation**: [gofastmcp.com](https://gofastmcp.com)
+- **GitHub Issues**: Report bugs and feature requests
+
+---
+
+*Last updated: January 2025*
