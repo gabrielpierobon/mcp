@@ -18,6 +18,11 @@ from tools import brave_search
 from tools import crawl4ai_tool
 from tools import airtable_tool
 
+# Import Google Workspace tools (separate modules)
+from tools import google_sheets_tool
+from tools import google_docs_tool
+from tools import google_slides_tool
+
 # Optional: Load .env file for local development
 try:
     from dotenv import load_dotenv
@@ -39,6 +44,11 @@ get_weather_tool.register(mcp)
 brave_search.register(mcp)
 crawl4ai_tool.register(mcp)
 airtable_tool.register(mcp)
+
+# Register Google Workspace tools
+google_sheets_tool.register(mcp)
+google_docs_tool.register(mcp)
+google_slides_tool.register(mcp)
 
 # --- Helper for n8n API Requests (REMOVED - MOVED TO tools/n8n_helpers.py) ---
 

@@ -355,50 +355,253 @@ These tools enable AI agents to interact with Airtable bases, tables, and record
     *   `workspace_id` (Optional[str]): ID of the workspace to create the base in.
 *   **Returns:** Same as `create_airtable_base`.
 
-### 5.4. Environment Variables
+## 6. Google Workspace Tools
 
-*   **`AIRTABLE_PERSONAL_ACCESS_TOKEN`**: Your Airtable Personal Access Token with appropriate scopes:
-    *   `data.records:read` - Read records from tables
-    *   `data.records:write` - Create, update, delete records (for future tools)
-    *   `schema.bases:read` - Read base schemas
-    *   `schema.bases:write` - Create and modify bases/tables
-    *   `user.email:read` - (optional) Read user email
+These tools enable AI agents to create and edit Google Sheets, Docs, and Slides. Requires Google API authentication setup.
 
-### 5.5. Usage Examples
+### 6.1. Google Sheets Tools
 
-```bash
-# List all available bases
-"What Airtable bases do I have?"
+#### 6.1.1. `create_google_sheet`
 
-# Get base structure
-"Show me the structure of my Storyteller base"
+*   **Description:** Create a new Google Spreadsheet with optional multiple sheets and sharing.
+*   **Arguments:**
+    *   `title` (str, required): Title of the new spreadsheet.
+    *   `sheet_names` (Optional[List[str]]): List of sheet names to create (defaults to ["Sheet1"]).
+    *   `share_with` (Optional[List[str]]): List of email addresses to share with.
+*   **Returns:** (Dict[str, Any])
+    *   `spreadsheet_id`: ID of the created spreadsheet.
+    *   `spreadsheet_url`: URL to access the spreadsheet.
+    *   `title`: Title of the spreadsheet.
+    *   `sheets`: List of created sheet names.
+    *   `shared_with`: List of emails shared with (if applicable).
+    *   `status`: "success" or "error".
+*   **Environment Variables:**
+    *   `GOOGLE_CREDENTIALS_FILE`: Path to Google OAuth2 credentials JSON file.
+    *   `GOOGLE_TOKEN_FILE`: Path to store OAuth2 token (auto-created).
 
-# Query records with natural language
-"Show me all Spanish stories for preschoolers from my PublicStories table"
+#### 6.1.2. `write_to_sheet`
 
-# Search for specific records
-"Find all users with Spanish language preference"
+*   **Description:** Write data to a Google Sheet.
+*   **Arguments:**
+    *   `spreadsheet_id` (str, required): ID of the spreadsheet.
+    *   `range_name` (str, required): A1 notation range (e.g., "Sheet1!A1:C3", "A1:B10").
+    *   `values` (List[List[Any]], required): 2D array of values to write.
+    *   `value_input_option` (str, optional): How values should be interpreted ("RAW" or "USER_ENTERED").
+*   **Returns:** (Dict[str, Any])
+    *   `spreadsheet_id`: ID of the spreadsheet.
+    *   `updated_range`: Range that was updated.
+    *   `updated_rows`: Number of rows updated.
+    *   `updated_columns`: Number of columns updated.
+    *   `updated_cells`: Number of cells updated.
+    *   `status`: "success" or "error".
 
-# Count records with filters
-"How many themes do I have in my Themes table?"
+#### 6.1.3. `read_from_sheet`
 
-# Validate before querying
-"Check if my Storyteller base has a Users table"
+*   **Description:** Read data from a Google Sheet.
+*   **Arguments:**
+    *   `spreadsheet_id` (str, required): ID of the spreadsheet.
+    *   `range_name` (str, required): A1 notation range to read.
+*   **Returns:** (Dict[str, Any])
+    *   `spreadsheet_id`: ID of the spreadsheet.
+    *   `range`: Range that was read.
+    *   `values`: 2D array of values from the sheet.
+    *   `row_count`: Number of rows returned.
+    *   `column_count`: Number of columns in the first row.
+    *   `status`: "success" or "error".
+
+### 6.2. Google Docs Tools
+
+#### 6.2.1. `create_google_doc`
+
+*   **Description:** Create a new Google Document.
+*   **Arguments:**
+    *   `title` (str, required): Title of the new document.
+    *   `content` (Optional[str]): Initial content for the document.
+    *   `share_with` (Optional[List[str]]): List of email addresses to share with.
+*   **Returns:** (Dict[str, Any])
+    *   `document_id`: ID of the created document.
+    *   `document_url`: URL to access the document.
+    *   `title`: Title of the document.
+    *   `content_added`: Boolean indicating if initial content was added.
+    *   `shared_with`: List of emails shared with (if applicable).
+    *   `status`: "success" or "error".
+
+#### 6.2.2. `insert_text_to_doc`
+
+*   **Description:** Insert text into a Google Document at a specific position.
+*   **Arguments:**
+    *   `document_id` (str, required): ID of the document.
+    *   `text` (str, required): Text to insert.
+    *   `index` (int, optional): Position to insert text (default: 1, which is the beginning).
+*   **Returns:** (Dict[str, Any])
+    *   `document_id`: ID of the document.
+    *   `text_inserted`: Text that was inserted.
+    *   `insertion_index`: Position where text was inserted.
+    *   `revision_id`: Document revision ID.
+    *   `status`: "success" or "error".
+
+#### 6.2.3. `read_google_doc`
+
+*   **Description:** Read content from a Google Document.
+*   **Arguments:**
+    *   `document_id` (str, required): ID of the document.
+*   **Returns:** (Dict[str, Any])
+    *   `document_id`: ID of the document.
+    *   `title`: Title of the document.
+    *   `revision_id`: Document revision ID.
+    *   `content`: Full text content of the document.
+    *   `character_count`: Number of characters in the content.
+    *   `status`: "success" or "error".
+
+### 6.3. Google Slides Tools
+
+#### 6.3.1. `create_google_slides`
+
+*   **Description:** Create a new Google Slides presentation.
+*   **Arguments:**
+    *   `title` (str, required): Title of the new presentation.
+    *   `template_id` (Optional[str]): ID of a template presentation to copy from.
+    *   `share_with` (Optional[List[str]]): List of email addresses to share with.
+*   **Returns:** (Dict[str, Any])
+    *   `presentation_id`: ID of the created presentation.
+    *   `presentation_url`: URL to access the presentation.
+    *   `title`: Title of the presentation.
+    *   `created_from_template`: Template ID used (if applicable).
+    *   `shared_with`: List of emails shared with (if applicable).
+    *   `status`: "success" or "error".
+
+#### 6.3.2. `add_slide`
+
+*   **Description:** Add a new slide to a Google Slides presentation.
+*   **Arguments:**
+    *   `presentation_id` (str, required): ID of the presentation.
+    *   `slide_layout` (str, optional): Layout for the new slide ("BLANK", "TITLE_AND_BODY", "TITLE_ONLY", etc.).
+    *   `title` (Optional[str]): Title for the slide.
+*   **Returns:** (Dict[str, Any])
+    *   `presentation_id`: ID of the presentation.
+    *   `slide_id`: ID of the new slide.
+    *   `slide_layout`: Layout used for the slide.
+    *   `title`: Title of the slide (if applicable).
+    *   `status`: "success" or "error".
+
+#### 6.3.3. `add_text_to_slide`
+
+*   **Description:** Add a text box to a specific slide in a Google Slides presentation.
+*   **Arguments:**
+    *   `presentation_id` (str, required): ID of the presentation.
+    *   `slide_id` (str, required): ID of the slide.
+    *   `text` (str, required): Text content to add.
+    *   `x` (float, optional): X coordinate of the text box in points (default: 100).
+    *   `y` (float, optional): Y coordinate of the text box in points (default: 100).
+    *   `width` (float, optional): Width of the text box in points (default: 400).
+    *   `height` (float, optional): Height of the text box in points (default: 100).
+*   **Returns:** (Dict[str, Any])
+    *   `presentation_id`: ID of the presentation.
+    *   `slide_id`: ID of the slide.
+    *   `text_box_id`: ID of the created text box.
+    *   `text`: Text that was added.
+    *   `position`: Dictionary with x and y coordinates.
+    *   `size`: Dictionary with width and height.
+    *   `status`: "success" or "error".
+
+### 6.4. Environment Variables
+
+*   **`GOOGLE_CREDENTIALS_FILE`**: Path to your Google OAuth2 credentials JSON file (default: "credentials.json").
+*   **`GOOGLE_TOKEN_FILE`**: Path to store OAuth2 token (default: "token.json", auto-created after first auth).
+
+### 6.5. Required Google API Scopes
+
+The Google Workspace tools require the following OAuth2 scopes:
+*   `https://www.googleapis.com/auth/spreadsheets` - Create and edit Google Sheets
+*   `https://www.googleapis.com/auth/documents` - Create and edit Google Docs
+*   `https://www.googleapis.com/auth/presentations` - Create and edit Google Slides
+*   `https://www.googleapis.com/auth/drive` - Share and manage files
+
+### 6.6. Setup Requirements
+
+1. **Google Cloud Console Setup:**
+   - Create a Google Cloud project
+   - Enable Google Sheets, Docs, Slides, and Drive APIs
+   - Create OAuth2 credentials (Desktop application type)
+   - Download credentials.json file
+
+2. **Install Dependencies:**
+   ```bash
+   pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+   ```
+
+3. **First-Time Authentication:**
+   - On first use, the system will open a browser for OAuth consent
+   - Sign in and grant permissions
+   - Token will be saved for future use
+
+### 6.7. Usage Examples
+
+```python
+# Create a new spreadsheet with data
+sheet_result = await create_google_sheet(
+    title="Sales Report Q1 2024",
+    sheet_names=["January", "February", "March"],
+    share_with=["manager@company.com"]
+)
+
+# Add data to the spreadsheet
+await write_to_sheet(
+    spreadsheet_id=sheet_result["spreadsheet_id"],
+    range_name="January!A1:D4",
+    values=[
+        ["Date", "Product", "Sales", "Revenue"],
+        ["2024-01-01", "Product A", 10, 1000],
+        ["2024-01-02", "Product B", 15, 1500],
+        ["2024-01-03", "Product A", 8, 800]
+    ]
+)
+
+# Create a document with content
+doc_result = await create_google_doc(
+    title="Meeting Notes - 2024-01-15",
+    content="# Meeting Notes\n\nDate: January 15, 2024\nAttendees: John, Jane, Bob\n\n",
+    share_with=["team@company.com"]
+)
+
+# Create a presentation
+slides_result = await create_google_slides(
+    title="Q1 Results Presentation",
+    share_with=["stakeholders@company.com"]
+)
+
+# Add slides and content
+slide_result = await add_slide(
+    presentation_id=slides_result["presentation_id"],
+    slide_layout="TITLE_AND_BODY",
+    title="Q1 Sales Results"
+)
+
+await add_text_to_slide(
+    presentation_id=slides_result["presentation_id"],
+    slide_id=slide_result["slide_id"],
+    text="• 15% increase in revenue\n• 23% more customers\n• Expanded to 3 new markets",
+    x=100,
+    y=250,
+    width=500,
+    height=200
+)
 ```
 
-### 5.6. Best Practices
+### 6.8. Best Practices
 
-1. **Use base names instead of IDs** - Tools like `list_records_by_base_name` are more reliable and user-friendly.
-2. **Validate first** - Use `validate_base_and_table` to prevent errors.
-3. **Start with simple queries** - List bases and get schemas before complex filtering.
-4. **Handle Free Plan limitations** - Base/table creation may be restricted; focus on data querying.
+1. **Authentication:** Ensure credentials.json is kept secure and not committed to version control
+2. **Sharing:** Only share documents with necessary recipients
+3. **Error Handling:** Always check the status field in responses
+4. **Batch Operations:** For multiple operations, consider grouping them to improve performance
+5. **Permissions:** Use appropriate Google API scopes - only request what you need
 
-### 5.7. Troubleshooting
+### 6.9. Troubleshooting
 
-- **403 Forbidden errors**: Check Personal Access Token permissions and ensure you're using the correct base ID.
-- **Base not found**: Use `list_airtable_bases` to see available bases and their exact names.
-- **Table not found**: Use `get_base_schema` to see available tables in a base.
-- **Filter errors**: Check Airtable formula syntax in filter expressions.
+- **Authentication errors:** Delete token.json and re-authenticate
+- **Permission denied:** Ensure all required APIs are enabled in Google Cloud Console
+- **File not found:** Use the correct file ID from the Google Drive URL
+- **Quota exceeded:** Google APIs have daily quotas; wait 24 hours or request increase
 
 ---
 
