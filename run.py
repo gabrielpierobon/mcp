@@ -21,6 +21,8 @@ from tools import google_sheets_tool
 from tools import google_docs_tool
 from tools import google_slides_tool
 
+from tools import file_system_tool
+
 # Optional: Load .env file for local development
 try:
     from dotenv import load_dotenv
@@ -53,6 +55,8 @@ airtable_tool.register(mcp)
 google_sheets_tool.register(mcp)
 google_docs_tool.register(mcp)
 google_slides_tool.register(mcp)
+
+file_system_tool.register(mcp)
 
 print("INFO: All tools registered successfully")
 

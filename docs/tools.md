@@ -9,6 +9,7 @@ Comprehensive documentation for all available MCP server tools organized by cate
 | [Web Search](web-search-tools.md) | Brave Search API integration | 2 | ✅ Available | API Key Required |
 | [Weather](weather-tools.md) | Global weather data and forecasts | 1 | ✅ Available | None |
 | [Calculator](calculator-tools.md) | Arithmetic operations | 1 | ✅ Available | None |
+| [File System](file-system-tools.md) | Local file reading and exploration | 5 | ✅ Available | None |
 | [Web Crawling](web-crawling-tools.md) | Website content extraction | 3 | ⚠️ Optional | Crawl4AI + Playwright |
 | [Browser Automation](browser-automation-tools.md) | Interactive browser control | 10 | ⚠️ Optional | Playwright |
 | [Airtable](airtable-tools.md) | Database management | 15+ | ✅ Available | API Token Required |
@@ -54,7 +55,7 @@ GOOGLE_TOKEN_FILE=token.json
 ### 3. Tool Selection
 
 Tools are automatically registered based on available dependencies:
-- **Core Tools**: Always available (web search, weather, calculator, Airtable)
+- **Core Tools**: Always available (web search, weather, calculator, file system, Airtable)
 - **Optional Tools**: Available when dependencies are installed
 - **Configuration**: Set environment variables for API-dependent tools
 
@@ -64,6 +65,7 @@ Tools are automatically registered based on available dependencies:
 - **Web Search**: Find information across the internet
 - **Weather**: Get current conditions and forecasts
 - **Calculator**: Perform mathematical operations
+- **File System**: Read and explore local files and directories
 
 ### Data Management
 - **Airtable**: Create and manage structured databases
@@ -82,26 +84,37 @@ Tools are automatically registered based on available dependencies:
 ### Research and Documentation
 1. **Web Search** → Find relevant information
 2. **Web Crawling** → Extract detailed content
-3. **Google Docs** → Create research documents
-4. **Airtable** → Organize findings
+3. **File System** → Read local research files
+4. **Google Docs** → Create research documents
+5. **Airtable** → Organize findings
 
 ### Data Collection and Analysis
 1. **Web Search** → Gather data sources
 2. **Weather** → Collect environmental data
-3. **Calculator** → Perform calculations
-4. **Google Sheets** → Analyze and visualize
+3. **File System** → Read local data files
+4. **Calculator** → Perform calculations
+5. **Google Sheets** → Analyze and visualize
+
+### Local File Management
+1. **File System** → Explore directory structures
+2. **File System** → Search for specific files or content
+3. **File System** → Read configuration files and documents
+4. **Airtable** → Catalog file information
+5. **Google Sheets** → Create file inventories
 
 ### Presentation Creation
 1. **Web Search** → Research content
-2. **Airtable** → Organize information
-3. **Google Slides** → Create presentations
-4. **Browser Automation** → Capture screenshots
+2. **File System** → Read local reference materials
+3. **Airtable** → Organize information
+4. **Google Slides** → Create presentations
+5. **Browser Automation** → Capture screenshots
 
 ### Automation and Monitoring
 1. **Browser Automation** → Navigate websites
 2. **Web Crawling** → Extract data
-3. **Airtable** → Store results
-4. **Weather** → Environmental monitoring
+3. **File System** → Process local files
+4. **Airtable** → Store results
+5. **Weather** → Environmental monitoring
 
 ## API Requirements and Costs
 
@@ -113,6 +126,7 @@ Tools are automatically registered based on available dependencies:
 ### Free Services
 - **Weather**: Open-Meteo API (no limits)
 - **Calculator**: Built-in functionality
+- **File System**: Local file access (no external dependencies)
 - **Web Crawling**: Uses local browser automation
 - **Browser Automation**: Uses local browser engines
 
@@ -157,7 +171,7 @@ All tools provide consistent error reporting:
 ## Performance Considerations
 
 ### Tool Performance
-- **Fast**: Calculator, Weather, Web Search
+- **Fast**: Calculator, Weather, Web Search, File System
 - **Medium**: Airtable, Google Workspace APIs
 - **Slower**: Web Crawling, Browser Automation
 
@@ -166,6 +180,7 @@ All tools provide consistent error reporting:
 - **Batch Operations**: Group related requests
 - **Parallel Processing**: Use concurrent tools when possible
 - **Resource Management**: Close browser sessions promptly
+- **File Size Limits**: Control memory usage with file reading limits
 
 ## Security Best Practices
 
@@ -174,6 +189,12 @@ All tools provide consistent error reporting:
 - Use different keys for different environments
 - Rotate keys regularly
 - Monitor usage and quotas
+
+### File System Security
+- Read-only access prevents system modification
+- File size limits prevent memory exhaustion
+- Path validation prevents directory traversal
+- Permission respect maintains system security
 
 ### Access Control
 - Configure tool-specific permissions

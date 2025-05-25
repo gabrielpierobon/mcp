@@ -9,6 +9,7 @@ The Model Context Protocol (MCP) allows AI agents to interact with external tool
 - **🔍 Search & Research**: Web search, local business discovery, and content extraction
 - **🌤️ Real-time Data**: Weather information and forecasts worldwide
 - **🧮 Calculations**: Mathematical operations with error handling
+- **📂 File System Access**: Read and explore local files and directories
 - **🕷️ Web Automation**: Browser control and website content extraction
 - **📊 Data Management**: Airtable database operations and structured data handling
 - **📝 Document Creation**: Google Workspace integration (Sheets, Docs, Slides)
@@ -23,6 +24,7 @@ The Model Context Protocol (MCP) allows AI agents to interact with external tool
 - **Browser Automation**: Full browser control with Playwright for interactive web tasks
 
 ### 📊 Data & Productivity
+- **File System Access**: Read local files, explore directories, search content with secure read-only access
 - **Airtable Management**: Create bases, manage tables, search records with template library
 - **Google Sheets**: Create spreadsheets, manipulate data, collaborative editing
 - **Google Docs**: Document creation, content editing, and collaborative writing
@@ -105,6 +107,7 @@ Your server will be available at:
 | **Search & Web** | 2 web search tools | Brave API | ✅ Core |
 | **Weather** | Global weather data | None (Open-Meteo) | ✅ Core |
 | **Calculator** | Arithmetic operations | None | ✅ Core |
+| **File System** | 5 file/directory tools | None | ✅ Core |
 | **Web Automation** | 3 crawling + 10 browser tools | None (local) | ⚡ Optional |
 | **Airtable** | 15+ database tools | Airtable Token | ✅ Core |
 | **Google Sheets** | 8 spreadsheet tools | Google OAuth2 | ⚡ Optional |
@@ -115,6 +118,7 @@ Your server will be available at:
 - `brave_web_search`, `brave_local_search` - Web and local business search
 - `get_weather` - Current weather and forecasts for any location
 - `calculator` - Basic arithmetic with error handling
+- `get_system_info`, `read_file`, `list_directory` - File system exploration
 - `create_airtable_base`, `list_records`, etc. - Database management
 
 ### Smart Context Features
@@ -122,6 +126,7 @@ Your server will be available at:
 - **Title Search**: Find documents by name without IDs
 - **Auto-append**: Add to most recent spreadsheet/document
 - **Template Library**: Pre-built Airtable templates (CRM, project management, etc.)
+- **File System Navigation**: Supports `~` for home directory, cross-platform paths
 
 ## 🔌 Integration Examples
 
@@ -136,7 +141,7 @@ Your server will be available at:
 {
   "endpoint": "http://localhost:8000/sse",
   "authentication": "bearer",
-  "tools": ["brave_web_search", "get_weather", "create_google_sheet"]
+  "tools": ["brave_web_search", "get_weather", "read_file", "create_google_sheet"]
 }
 ```
 
@@ -171,14 +176,22 @@ async def call_mcp_tool():
         response = await client.post(
             "http://localhost:8000/messages",
             json={
-                "tool": "get_weather",
-                "parameters": {"location": "Tokyo, Japan"}
+                "tool": "list_directory",
+                "parameters": {"directory_path": "~"}
             }
         )
         return response.json()
 ```
 
 ## 📊 Advanced Features
+
+### File System Integration
+Secure, read-only access to local files:
+- **Cross-Platform**: Works on Windows, Linux, and macOS
+- **Smart Path Handling**: Supports `~` for home directory and environment variables
+- **Content Search**: Find files by name patterns or content
+- **Size Controls**: Configurable limits prevent memory issues
+- **Permission Aware**: Respects file system permissions
 
 ### Airtable Template System
 Create production-ready bases instantly:
@@ -265,6 +278,7 @@ python -m tests.test_mcp_crawler
 ### Free Services
 - **Weather**: Open-Meteo API (unlimited)
 - **Calculator**: Built-in functionality
+- **File System**: Local file access (no external dependencies)
 - **Web Crawling**: Local browser automation
 - **Browser Control**: Local Playwright execution
 
@@ -279,6 +293,7 @@ python -m tests.test_mcp_crawler
 - [Web Search Tools](docs/tools/web-search-tools.md)
 - [Weather Tools](docs/tools/weather-tools.md) 
 - [Calculator Tools](docs/tools/calculator-tools.md)
+- [File System Tools](docs/tools/file-system-tools.md)
 - [Web Crawling Tools](docs/tools/web-crawling-tools.md)
 - [Browser Automation Tools](docs/tools/browser-automation-tools.md)
 - [Airtable Tools](docs/tools/airtable-tools.md)
@@ -324,6 +339,12 @@ AIRTABLE_PERSONAL_ACCESS_TOKEN=${AIRTABLE_TOKEN}
 - Use different keys for development and production environments
 - Monitor API usage and set up alerts for unusual activity
 - Rotate keys regularly and update access
+
+### File System Security
+- Read-only access prevents accidental system modification
+- File size limits (50MB default) prevent memory exhaustion
+- Path validation prevents directory traversal attacks
+- Permission respect maintains existing security boundaries
 
 ### Tool Access Control
 - Use tool selection in n8n to limit available functions
