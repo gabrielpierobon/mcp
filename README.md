@@ -1,48 +1,43 @@
 # MCP Server for AI Integration
 
-This project implements a comprehensive Model Context Protocol (MCP) server that provides AI agents with access to a wide range of tools and services. Built with FastMCP 2.0, it offers a modular, extensible architecture for seamless integration with various platforms and APIs.
+A comprehensive Model Context Protocol (MCP) server built with FastMCP 2.0 that provides AI agents with access to a powerful suite of tools and services. This modular, extensible server enables seamless integration with various platforms, APIs, and automation workflows.
 
-## Overview
+## 🚀 Overview
 
-The Model Context Protocol (MCP) is a specification that allows AI agents to interact with external tools and services. This implementation provides a rich toolkit that enables AI agents to:
+The Model Context Protocol (MCP) allows AI agents to interact with external tools and services through a standardized interface. This implementation provides a rich toolkit that enables AI agents to:
 
-- **Search the Web**: Perform web and local searches using Brave Search API
-- **Access Weather Data**: Get current conditions and forecasts for any location
-- **Perform Calculations**: Execute arithmetic operations
-- **Crawl Websites**: Extract content from web pages in various formats
-- **Manage Airtable Data**: Create bases, tables, and query records
-- **Create Google Workspace Documents**: Generate and edit Sheets, Docs, and Slides
-- **Integration Ready**: Designed to work with n8n and other automation platforms
+- **🔍 Search & Research**: Web search, local business discovery, and content extraction
+- **🌤️ Real-time Data**: Weather information and forecasts worldwide
+- **🧮 Calculations**: Mathematical operations with error handling
+- **🕷️ Web Automation**: Browser control and website content extraction
+- **📊 Data Management**: Airtable database operations and structured data handling
+- **📝 Document Creation**: Google Workspace integration (Sheets, Docs, Slides)
+- **🔗 Platform Integration**: Ready for n8n, Claude Desktop, and custom applications
 
-## Features
+## ✨ Key Features
 
-### 🌐 Web Search & Data
-- **Brave Search Integration**: Web search, news, videos, and local business search
-- **Weather Information**: Current conditions and forecasts using Open-Meteo API
-- **Web Crawling**: Extract content from websites using Crawl4AI with support for structured data extraction
+### 🌐 Web & Search Tools
+- **Brave Search Integration**: Web search, news, videos, and local business discovery
+- **Real-time Weather**: Current conditions and forecasts using Open-Meteo API
+- **Web Crawling**: Extract content from websites using Crawl4AI with structured data support
+- **Browser Automation**: Full browser control with Playwright for interactive web tasks
 
-### 🧮 Utilities
-- **Calculator**: Basic arithmetic operations (add, subtract, multiply, divide)
-- **Context Memory**: Session-based memory for recent operations and created documents
+### 📊 Data & Productivity
+- **Airtable Management**: Create bases, manage tables, search records with template library
+- **Google Sheets**: Create spreadsheets, manipulate data, collaborative editing
+- **Google Docs**: Document creation, content editing, and collaborative writing
+- **Google Slides**: Presentation creation, slide management, template-based workflows
+- **Calculator**: Reliable arithmetic operations with comprehensive error handling
 
-### 📊 Airtable Integration
-- **Base Management**: Create bases from templates or custom configurations
-- **Data Operations**: List, search, filter, and count records across tables
-- **Template Library**: Pre-built templates for CRM, project management, inventory, and more
-
-### 📝 Google Workspace Tools
-- **Google Sheets**: Create spreadsheets, write/read data, append to existing sheets
-- **Google Docs**: Create documents, edit content, read existing documents
-- **Google Slides**: Create presentations, add slides with content, manage placeholders
-
-### 🏗️ Architecture
-- **Modular Design**: Tools organized in separate modules for easy management
-- **FastMCP 2.0**: Built on the latest FastMCP framework for optimal performance
+### 🏗️ Architecture Highlights
+- **FastMCP 2.0**: Built on the latest MCP framework for optimal performance
+- **Modular Design**: Tools in separate modules for easy management and extension
+- **Session Context**: Smart memory for recent operations and created documents
 - **SSE Support**: Server-Sent Events for real-time communication
-- **Authentication**: Support for various authentication methods (Bearer, OAuth2)
-- **Tool Selection**: Granular control over which tools are available to AI agents
+- **Flexible Authentication**: OAuth2, Bearer tokens, and API key support
+- **Error Resilience**: Comprehensive error handling with graceful degradation
 
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Installation
 
@@ -51,16 +46,16 @@ The Model Context Protocol (MCP) is a specification that allows AI agents to int
 git clone <repository-url>
 cd mcp-server
 
-# Install dependencies (using uv recommended)
+# Install with uv (recommended)
 uv venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 uv pip install -r requirements.txt
 
-# Or using pip
+# Or with pip
 pip install -r requirements.txt
 ```
 
-### 2. Environment Configuration
+### 2. Environment Setup
 
 Create a `.env` file in the project root:
 
@@ -70,197 +65,308 @@ MCP_SERVER_NAME=my-mcp-server
 MCP_HOST=0.0.0.0
 MCP_PORT=8000
 
-# API Keys (obtain from respective services)
+# Required API Keys
 BRAVE_API_KEY=your_brave_search_api_key
 AIRTABLE_PERSONAL_ACCESS_TOKEN=your_airtable_token
 
-# Google OAuth (for Workspace tools)
+# Optional: Google Workspace (for Sheets, Docs, Slides)
 GOOGLE_CREDENTIALS_FILE=credentials.json
 GOOGLE_TOKEN_FILE=token.json
 ```
 
-### 3. Run the Server
+### 3. Optional Dependencies
+
+For enhanced functionality, install additional tools:
+
+```bash
+# Web crawling and browser automation
+pip install crawl4ai playwright
+playwright install
+
+# Google Workspace integration
+pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+```
+
+### 4. Launch the Server
 
 ```bash
 python run.py
 ```
 
-The server will start and be available at `http://localhost:8000` with SSE endpoint at `/sse`.
+Your server will be available at:
+- **Base URL**: `http://localhost:8000`
+- **SSE Endpoint**: `http://localhost:8000/sse`
+- **MCP Protocol**: Ready for AI agent connections
 
-## Tool Categories
+## 🛠️ Tool Categories
 
-### 🔍 Search Tools
-- `brave_web_search`: Web search with pagination and filtering
-- `brave_local_search`: Local business and service search with fallback
+| Category | Tools | API Required | Status |
+|----------|-------|--------------|--------|
+| **Search & Web** | 2 web search tools | Brave API | ✅ Core |
+| **Weather** | Global weather data | None (Open-Meteo) | ✅ Core |
+| **Calculator** | Arithmetic operations | None | ✅ Core |
+| **Web Automation** | 3 crawling + 10 browser tools | None (local) | ⚡ Optional |
+| **Airtable** | 15+ database tools | Airtable Token | ✅ Core |
+| **Google Sheets** | 8 spreadsheet tools | Google OAuth2 | ⚡ Optional |
+| **Google Docs** | 5 document tools | Google OAuth2 | ⚡ Optional |
+| **Google Slides** | 10 presentation tools | Google OAuth2 | ⚡ Optional |
 
-### 🌤️ Weather Tools
-- `get_weather`: Current conditions and forecasts for any location worldwide
+### Core Tools (Always Available)
+- `brave_web_search`, `brave_local_search` - Web and local business search
+- `get_weather` - Current weather and forecasts for any location
+- `calculator` - Basic arithmetic with error handling
+- `create_airtable_base`, `list_records`, etc. - Database management
 
-### 🧮 Calculation Tools
-- `calculator`: Basic arithmetic operations with error handling
+### Smart Context Features
+- **Session Memory**: Tracks recently created documents and spreadsheets
+- **Title Search**: Find documents by name without IDs
+- **Auto-append**: Add to most recent spreadsheet/document
+- **Template Library**: Pre-built Airtable templates (CRM, project management, etc.)
 
-### 🕷️ Web Crawling Tools
-- `crawl_webpage`: Extract content from web pages in markdown, HTML, or text
-- `crawl_multiple_webpages`: Batch crawling with concurrency control
-- `extract_structured_data`: CSS selector-based data extraction
+## 🔌 Integration Examples
 
-### 📊 Airtable Tools
-- **Base Management**: `list_airtable_bases`, `create_airtable_base`, `get_base_schema`
-- **Template Creation**: `create_base_with_template` (CRM, project management, etc.)
-- **Data Operations**: `list_records`, `search_records`, `count_records`
-- **User-Friendly**: `list_records_by_base_name`, `search_records_by_base_name`
+### n8n Workflow Integration
 
-### 📝 Google Workspace Tools
-- **Sheets**: `create_google_sheet`, `write_to_sheet`, `append_to_last_sheet`
-- **Docs**: `create_google_doc`, `rewrite_last_doc`, `read_google_doc`
-- **Slides**: `create_google_slides`, `create_slide_with_content`, `add_slide_to_last_presentation`
+1. Add **MCP Client Tool** node to your workflow
+2. Configure the SSE endpoint: `http://your-server:8000/sse`
+3. Select which tools to expose to your AI agent
+4. Configure authentication if required
 
-## Integration Guides
-
-### n8n Integration
-
-The MCP server works seamlessly with n8n's MCP Client Tool node:
-
-1. **Add MCP Client Tool Node**: In your n8n workflow, add the MCP Client Tool node
-2. **Configure Endpoint**: Set SSE endpoint to `http://your-server:8000/sse`
-3. **Select Tools**: Choose which tools to expose to your AI agent
-4. **Authentication**: Configure authentication if required
+```json
+{
+  "endpoint": "http://localhost:8000/sse",
+  "authentication": "bearer",
+  "tools": ["brave_web_search", "get_weather", "create_google_sheet"]
+}
+```
 
 ### Claude Desktop Integration
 
-For use with Claude Desktop, add to your configuration:
+Add to your Claude Desktop configuration:
 
 ```json
 {
   "mcpServers": {
-    "my-mcp-server": {
+    "enhanced-mcp-server": {
       "command": "python",
-      "args": ["/path/to/your/run.py"],
+      "args": ["/absolute/path/to/run.py"],
       "env": {
-        "BRAVE_API_KEY": "your_key_here"
+        "BRAVE_API_KEY": "your_brave_api_key",
+        "AIRTABLE_PERSONAL_ACCESS_TOKEN": "your_airtable_token"
       }
     }
   }
 }
 ```
 
-## Advanced Features
+### Custom Application
 
-### Session Context Memory
-The server maintains context between operations:
-- **Recent Documents**: Automatically tracks created Google Workspace files
-- **Smart Defaults**: Use "last created" spreadsheet/document for quick operations
-- **Context Queries**: Find documents by title or list recent creations
+Connect via HTTP API with JSON responses:
 
-### Template System
-Pre-built Airtable templates for common use cases:
-- **Project Management**: Projects and tasks with status tracking
-- **CRM**: Contacts, deals, and sales pipeline
-- **Inventory**: Product tracking with stock levels
-- **Event Planning**: Events and task management
-- **Content Calendar**: Content planning and scheduling
+```python
+import httpx
 
-### Error Handling
-Comprehensive error handling with:
-- **Graceful Degradation**: Tools fail safely without breaking the server
-- **Detailed Error Messages**: Clear feedback for troubleshooting
-- **Status Indicators**: Consistent status reporting across all tools
+async def call_mcp_tool():
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/messages",
+            json={
+                "tool": "get_weather",
+                "parameters": {"location": "Tokyo, Japan"}
+            }
+        )
+        return response.json()
+```
 
-## Development
+## 📊 Advanced Features
+
+### Airtable Template System
+Create production-ready bases instantly:
+- **CRM**: Customer relationship management with deals pipeline
+- **Project Management**: Tasks, projects, and team coordination  
+- **Inventory**: Product tracking with stock levels and suppliers
+- **Event Planning**: Event management with task coordination
+- **Content Calendar**: Content planning and publishing workflow
+
+### Google Workspace Integration
+Seamless document creation and management:
+- **Context-Aware**: Automatically tracks recent creations
+- **Smart Operations**: "Append to last sheet", "Edit recent doc"
+- **Collaborative**: Built-in sharing and permission management
+- **Template Support**: Copy from existing documents and presentations
+
+### Web Automation Capabilities
+Powerful browser control for complex tasks:
+- **Multi-Browser**: Chrome, Firefox, Safari support
+- **Session Management**: Multiple concurrent browser contexts
+- **Interaction Suite**: Click, fill forms, wait for elements, execute JavaScript
+- **Content Extraction**: Screenshots, accessibility trees, structured data
+
+## 🔧 Development & Extension
 
 ### Adding New Tools
 
-1. **Create Tool File**: Add new tool in `tools/` directory
-2. **Implement Functions**: Create async functions with proper type hints
-3. **Add Registration**: Include `register(mcp_instance)` function
-4. **Update Server**: Import and register in `run.py`
+1. Create a new tool file in `tools/`:
 
-Example:
 ```python
 # tools/my_tool.py
+from typing import Dict, Any
+
 async def my_function(param: str) -> Dict[str, Any]:
     """Tool description for AI agents."""
-    return {"result": param, "status": "success"}
+    try:
+        result = f"Processed: {param}"
+        return {"result": result, "status": "success"}
+    except Exception as e:
+        return {"error": str(e), "status": "error"}
 
 def register(mcp_instance):
     mcp_instance.tool()(my_function)
 ```
 
-### Environment Setup for Development
+2. Import and register in `run.py`:
+
+```python
+from tools import my_tool
+my_tool.register(mcp)
+```
+
+### Development Setup
 
 ```bash
-# Install additional development dependencies
+# Install development dependencies
 uv pip install pytest python-dotenv
 
 # Run tests
 pytest tests/
 
-# Check specific tool functionality
+# Test specific tools
 python -m tests.test_mcp_crawler
 ```
 
-## API Requirements
+## 🔐 API Setup & Costs
 
-### Required API Keys
+### Required for Full Functionality
 
-1. **Brave Search**: Get API key from [Brave Search API](https://api.search.brave.com/)
-2. **Airtable**: Generate Personal Access Token from [Airtable Account](https://airtable.com/account)
-3. **Google Workspace**: Set up OAuth2 credentials via [Google Cloud Console](https://console.cloud.google.com/)
+**Brave Search API** ([Get API Key](https://api.search.brave.com/))
+- Free tier: 2,000 queries/month
+- Paid plans: Higher limits available
+- Usage: Web search and local business discovery
 
-### Optional Dependencies
+**Airtable Personal Access Token** ([Generate Token](https://airtable.com/account))
+- Free tier: Generous usage limits
+- Usage: Database creation and management
 
-- **Crawl4AI**: `pip install crawl4ai playwright && playwright install`
-- **Google APIs**: `pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client`
+**Google Workspace APIs** ([Setup Guide](https://console.cloud.google.com/))
+- Free tier with setup required
+- OAuth2 credentials needed
+- Usage: Sheets, Docs, and Slides integration
 
-## Production Deployment
+### Free Services
+- **Weather**: Open-Meteo API (unlimited)
+- **Calculator**: Built-in functionality
+- **Web Crawling**: Local browser automation
+- **Browser Control**: Local Playwright execution
 
-### Docker Deployment (Coming Soon)
+## 📖 Documentation
+
+- **[Complete Tool Reference](docs/tools.md)** - Detailed documentation for all tools
+- **[Development Guide](docs/server_and_tool_development.md)** - Adding new tools and extending functionality
+- **[System Prompts](docs/prompt_guide.md)** - LLM integration guidance
+- **[MCP Protocol Guide](docs/mcp.md)** - Understanding the Model Context Protocol
+
+### Individual Tool Documentation
+- [Web Search Tools](docs/tools/web-search-tools.md)
+- [Weather Tools](docs/tools/weather-tools.md) 
+- [Calculator Tools](docs/tools/calculator-tools.md)
+- [Web Crawling Tools](docs/tools/web-crawling-tools.md)
+- [Browser Automation Tools](docs/tools/browser-automation-tools.md)
+- [Airtable Tools](docs/tools/airtable-tools.md)
+- [Google Sheets Tools](docs/tools/google-sheets-tools.md)
+- [Google Docs Tools](docs/tools/google-docs-tools.md)
+- [Google Slides Tools](docs/tools/google-slides-tools.md)
+
+## 🚀 Production Deployment
+
+### Docker Deployment (Example)
+
 ```dockerfile
 FROM python:3.11-slim
-COPY . /app
+
 WORKDIR /app
+COPY . .
 RUN pip install -r requirements.txt
+
+# Install optional dependencies
+RUN pip install crawl4ai playwright && playwright install --with-deps
+
+EXPOSE 8000
 CMD ["python", "run.py"]
 ```
 
-### Environment Variables for Production
+### Environment Variables
+
 ```env
+# Production settings
 MCP_HOST=0.0.0.0
 MCP_PORT=8000
 MCP_SERVER_NAME=production-mcp-server
 
-# Security: Use secure token storage
+# Secure token management
 BRAVE_API_KEY=${BRAVE_API_KEY}
 AIRTABLE_PERSONAL_ACCESS_TOKEN=${AIRTABLE_TOKEN}
 ```
 
-## Documentation
+## 🛡️ Security & Best Practices
 
-- **Tool Reference**: See `docs/tools.md` for complete tool documentation
-- **Development Guide**: See `docs/server_and_tool_development.md`
-- **System Prompts**: See `docs/prompt_guide.md` for LLM integration guidance
-- **MCP Guide**: See `docs/mcp.md` for MCP protocol details
+### API Key Security
+- Store keys in environment variables, never in code
+- Use different keys for development and production environments
+- Monitor API usage and set up alerts for unusual activity
+- Rotate keys regularly and update access
 
-## License
+### Tool Access Control
+- Use tool selection in n8n to limit available functions
+- Monitor tool usage through logging
+- Implement rate limiting for production deployments
+- Review and audit tool access regularly
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 🤝 Contributing
 
-## Support
-
-- **Issues**: Report bugs and feature requests via GitHub Issues
-- **Documentation**: Complete tool documentation available in `docs/` directory
-- **Examples**: See `examples/` directory for usage examples
-
-## Contributing
-
-Contributions are welcome! Please read the development guide and:
+We welcome contributions! Please:
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch: `git checkout -b feature/amazing-tool`
 3. Add tests for new functionality
-4. Ensure all tests pass
+4. Ensure all tests pass: `pytest`
 5. Submit a pull request
+
+### Areas for Contribution
+- New tool integrations (Slack, GitHub, etc.)
+- Enhanced error handling and logging
+- Performance optimizations
+- Documentation improvements
+- Testing and quality assurance
+
+## 📞 Support & Community
+
+- **Issues**: Report bugs and request features via [GitHub Issues](https://github.com/your-repo/issues)
+- **Documentation**: Complete tool docs in the `docs/` directory
+- **Examples**: Usage examples and workflows in `examples/` directory
+
+## 🏆 Built With
+
+- **[FastMCP 2.0](https://gofastmcp.com)** - The fast, Pythonic way to build MCP servers
+- **[Brave Search](https://api.search.brave.com)** - Privacy-focused web search
+- **[Open-Meteo](https://open-meteo.com)** - Free weather API
+- **[Crawl4AI](https://github.com/unclecode/crawl4ai)** - AI-friendly web crawling
+- **[Playwright](https://playwright.dev)** - Browser automation
+- **[Google APIs](https://developers.google.com)** - Workspace integration
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-**Built with FastMCP 2.0** - The fast, Pythonic way to build MCP servers and clients.
+**Ready to supercharge your AI workflows?** Get started with the installation guide above and explore the comprehensive tool documentation to unlock the full potential of your AI agents.
