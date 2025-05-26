@@ -14,14 +14,16 @@ from tools import get_weather_tool
 from tools import brave_search
 from tools import crawl4ai_tool
 from tools import airtable_tool
-from tools import playwright_browser_tool  # NEW: Browser automation tools
+from tools import playwright_browser_tool
 
 # Import Google Workspace tools (separate modules)
 from tools import google_sheets_tool
 from tools import google_docs_tool
 from tools import google_slides_tool
 
+# Import file system tools (read and write)
 from tools import file_system_tool
+from tools import file_writing_tool  # NEW: File writing capabilities
 
 # Optional: Load .env file for local development
 try:
@@ -46,7 +48,7 @@ brave_search.register(mcp)
 
 # Web automation tools
 crawl4ai_tool.register(mcp)
-playwright_browser_tool.register(mcp)  # NEW: Browser automation
+playwright_browser_tool.register(mcp)
 
 # Data management tools
 airtable_tool.register(mcp)
@@ -56,7 +58,9 @@ google_sheets_tool.register(mcp)
 google_docs_tool.register(mcp)
 google_slides_tool.register(mcp)
 
+# File system tools (read-only and write capabilities)
 file_system_tool.register(mcp)
+file_writing_tool.register(mcp)  # NEW: Register file writing tools
 
 print("INFO: All tools registered successfully")
 
@@ -103,5 +107,6 @@ if __name__ == "__main__":
     print(f"INFO: Starting MCP server on {host}:{port}")
     print(f"INFO: SSE endpoint available at http://{host}:{port}/sse")
     print(f"INFO: Server name: {MCP_SERVER_NAME}")
+    print(f"INFO: File writing sandbox: C:\\Users\\usuario\\agent_playground")
     
     uvicorn.run(app, host=host, port=port)

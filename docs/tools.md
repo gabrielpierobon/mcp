@@ -6,16 +6,17 @@ Comprehensive documentation for all available MCP server tools organized by cate
 
 | Category | Description | Functions | Status | Dependencies |
 |----------|-------------|-----------|--------|-------------|
-| [Web Search](web-search-tools.md) | Brave Search API integration | 2 | ✅ Available | API Key Required |
-| [Weather](weather-tools.md) | Global weather data and forecasts | 1 | ✅ Available | None |
-| [Calculator](calculator-tools.md) | Arithmetic operations | 1 | ✅ Available | None |
-| [File System](file-system-tools.md) | Local file reading and exploration | 5 | ✅ Available | None |
-| [Web Crawling](web-crawling-tools.md) | Website content extraction | 3 | ⚠️ Optional | Crawl4AI + Playwright |
-| [Browser Automation](browser-automation-tools.md) | Interactive browser control | 10 | ⚠️ Optional | Playwright |
-| [Airtable](airtable-tools.md) | Database management | 15+ | ✅ Available | API Token Required |
-| [Google Sheets](google-sheets-tools.md) | Spreadsheet operations | 8 | ⚠️ Optional | Google API + OAuth2 |
-| [Google Docs](google-docs-tools.md) | Document creation/editing | 5 | ⚠️ Optional | Google API + OAuth2 |
-| [Google Slides](google-slides-tools.md) | Presentation management | 10 | ⚠️ Optional | Google API + OAuth2 |
+| [Web Search](tools/web-search-tools.md) | Brave Search API integration | 2 | ✅ Available | API Key Required |
+| [Weather](tools/weather-tools.md) | Global weather data and forecasts | 1 | ✅ Available | None |
+| [Calculator](tools/calculator-tools.md) | Arithmetic operations | 1 | ✅ Available | None |
+| [File System](tools/file-system-tools.md) | Local file reading and exploration | 5 | ✅ Available | None |
+| [File Writing](tools/file-writing-tools.md) | **NEW** Secure file creation and project setup | 5 | ✅ Available | None |
+| [Web Crawling](tools/web-crawling-tools.md) | Website content extraction | 3 | ⚠️ Optional | Crawl4AI + Playwright |
+| [Browser Automation](tools/browser-automation-tools.md) | Interactive browser control | 10 | ⚠️ Optional | Playwright |
+| [Airtable](tools/airtable-tools.md) | Database management | 15+ | ✅ Available | API Token Required |
+| [Google Sheets](tools/google-sheets-tools.md) | Spreadsheet operations | 8 | ⚠️ Optional | Google API + OAuth2 |
+| [Google Docs](tools/google-docs-tools.md) | Document creation/editing | 5 | ⚠️ Optional | Google API + OAuth2 |
+| [Google Slides](tools/google-slides-tools.md) | Presentation management | 10 | ⚠️ Optional | Google API + OAuth2 |
 
 ## Quick Start
 
@@ -55,7 +56,7 @@ GOOGLE_TOKEN_FILE=token.json
 ### 3. Tool Selection
 
 Tools are automatically registered based on available dependencies:
-- **Core Tools**: Always available (web search, weather, calculator, file system, Airtable)
+- **Core Tools**: Always available (web search, weather, calculator, file system, file writing, Airtable)
 - **Optional Tools**: Available when dependencies are installed
 - **Configuration**: Set environment variables for API-dependent tools
 
@@ -66,6 +67,7 @@ Tools are automatically registered based on available dependencies:
 - **Weather**: Get current conditions and forecasts
 - **Calculator**: Perform mathematical operations
 - **File System**: Read and explore local files and directories
+- **File Writing**: 🆕 Create files and project structures in secure sandbox
 
 ### Data Management
 - **Airtable**: Create and manage structured databases
@@ -79,42 +81,73 @@ Tools are automatically registered based on available dependencies:
 - **Web Crawling**: Extract content from websites
 - **Browser Automation**: Interactive web page control
 
+## 🆕 New File Writing Capabilities
+
+### Secure Sandbox Environment
+- **Playground Directory**: `C:\Users\usuario\agent_playground`
+- **Complete Isolation**: Cannot write outside designated directory
+- **Safe Operations**: Path validation prevents security issues
+
+### Available Functions
+- **`write_file`**: Create or overwrite individual files
+- **`create_directory`**: Create directory structures
+- **`write_multiple_files`**: Batch file creation for efficiency
+- **`get_playground_info`**: Sandbox directory information
+- **`create_project_structure`**: Complete project templates
+
+### Project Templates
+- **Web Projects**: HTML, CSS, JavaScript with proper structure
+- **Python Projects**: Package structure with tests and documentation  
+- **React Projects**: Complete React setup with components
+- **General Projects**: Basic documentation and script structure
+
 ## Common Workflows
 
 ### Research and Documentation
 1. **Web Search** → Find relevant information
 2. **Web Crawling** → Extract detailed content
 3. **File System** → Read local research files
-4. **Google Docs** → Create research documents
+4. **File Writing** → 🆕 Create organized documentation
 5. **Airtable** → Organize findings
+
+### Development Project Creation
+1. **Web Search** → Research best practices
+2. **File Writing** → 🆕 Create project structure with templates
+3. **File Writing** → 🆕 Generate source code files
+4. **File System** → Read existing code for reference
+5. **Google Docs** → Document the project
 
 ### Data Collection and Analysis
 1. **Web Search** → Gather data sources
 2. **Weather** → Collect environmental data
 3. **File System** → Read local data files
 4. **Calculator** → Perform calculations
-5. **Google Sheets** → Analyze and visualize
+5. **File Writing** → 🆕 Save processed results
+6. **Google Sheets** → Analyze and visualize
 
-### Local File Management
+### Local File Management and Development
 1. **File System** → Explore directory structures
 2. **File System** → Search for specific files or content
 3. **File System** → Read configuration files and documents
-4. **Airtable** → Catalog file information
-5. **Google Sheets** → Create file inventories
+4. **File Writing** → 🆕 Create new configurations and scripts
+5. **File Writing** → 🆕 Set up complete development environments
+6. **Airtable** → Catalog file information
 
 ### Presentation Creation
 1. **Web Search** → Research content
 2. **File System** → Read local reference materials
-3. **Airtable** → Organize information
-4. **Google Slides** → Create presentations
-5. **Browser Automation** → Capture screenshots
+3. **File Writing** → 🆕 Create supporting documentation
+4. **Airtable** → Organize information
+5. **Google Slides** → Create presentations
+6. **Browser Automation** → Capture screenshots
 
 ### Automation and Monitoring
 1. **Browser Automation** → Navigate websites
 2. **Web Crawling** → Extract data
 3. **File System** → Process local files
-4. **Airtable** → Store results
-5. **Weather** → Environmental monitoring
+4. **File Writing** → 🆕 Generate automation scripts
+5. **Airtable** → Store results
+6. **Weather** → Environmental monitoring
 
 ## API Requirements and Costs
 
@@ -127,6 +160,7 @@ Tools are automatically registered based on available dependencies:
 - **Weather**: Open-Meteo API (no limits)
 - **Calculator**: Built-in functionality
 - **File System**: Local file access (no external dependencies)
+- **File Writing**: 🆕 Local file creation (no external dependencies)
 - **Web Crawling**: Uses local browser automation
 - **Browser Automation**: Uses local browser engines
 
@@ -171,13 +205,13 @@ All tools provide consistent error reporting:
 ## Performance Considerations
 
 ### Tool Performance
-- **Fast**: Calculator, Weather, Web Search, File System
+- **Fast**: Calculator, Weather, Web Search, File System, File Writing
 - **Medium**: Airtable, Google Workspace APIs
 - **Slower**: Web Crawling, Browser Automation
 
 ### Optimization Strategies
 - **Caching**: Implement for repeated operations
-- **Batch Operations**: Group related requests
+- **Batch Operations**: Group related requests (especially file writing)
 - **Parallel Processing**: Use concurrent tools when possible
 - **Resource Management**: Close browser sessions promptly
 - **File Size Limits**: Control memory usage with file reading limits
@@ -191,7 +225,8 @@ All tools provide consistent error reporting:
 - Monitor usage and quotas
 
 ### File System Security
-- Read-only access prevents system modification
+- **Read-only access** prevents system modification (file system tools)
+- **Sandbox restrictions** limit file writing to designated directory
 - File size limits prevent memory exhaustion
 - Path validation prevents directory traversal
 - Permission respect maintains system security
@@ -201,6 +236,27 @@ All tools provide consistent error reporting:
 - Use principle of least privilege
 - Monitor tool usage and access logs
 - Implement proper authentication
+
+## 🆕 File Writing Security Model
+
+### Sandbox Enforcement
+- **Restricted Directory**: All file operations limited to `C:\Users\usuario\agent_playground`
+- **Path Validation**: Prevents directory traversal attacks (`../`)
+- **Automatic Creation**: Creates playground directory if it doesn't exist
+- **Safe Resolution**: Handles both relative and absolute paths safely
+
+### Supported Operations
+- **File Creation**: Write new files with any text content
+- **Directory Creation**: Create nested directory structures
+- **Batch Operations**: Write multiple files efficiently
+- **Project Templates**: Generate complete project structures
+
+### Content Types
+- **Source Code**: Python, JavaScript, HTML, CSS, Java, etc.
+- **Configuration**: JSON, YAML, INI, ENV files
+- **Documentation**: Markdown, text files, README files
+- **Data Files**: CSV, XML, SQL files
+- **Scripts**: Shell, batch, PowerShell scripts
 
 ## Support and Resources
 
