@@ -3,7 +3,7 @@ import os
 from typing import Any, Dict, List
 
 import httpx
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from starlette.applications import Starlette
 from starlette.routing import Mount
 import uvicorn
@@ -92,8 +92,8 @@ except AttributeError:
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    host = os.getenv("MCP_HOST", "0.0.0.0")
-    port = int(os.getenv("MCP_PORT", "8000"))
+    # Detect if running from Claude Desktop (stdio) or standalone (HTTP)
+    import sys
     
     # List registered tools
     if hasattr(mcp, '_tool_manager') and hasattr(mcp._tool_manager, '_tools'):
@@ -101,12 +101,18 @@ if __name__ == "__main__":
         print(f"INFO: Registered {len(registered_tools)} tools:")
         for tool in sorted(registered_tools):
             print(f"  - {tool}")
+    
+    # Check if running from Claude Desktop (has specific env or args pattern)
+    if len(sys.argv) == 1 and not os.getenv("MCP_FORCE_HTTP"):
+        # Default to stdio for Claude Desktop
+        print("INFO: Starting MCP server with stdio transport for Claude Desktop")
+        mcp.run(transport="stdio")
     else:
-        print("INFO: Could not determine registered tools from mcp object")
-    
-    print(f"INFO: Starting MCP server on {host}:{port}")
-    print(f"INFO: SSE endpoint available at http://{host}:{port}/sse")
-    print(f"INFO: Server name: {MCP_SERVER_NAME}")
-    print(f"INFO: File writing sandbox: C:\\Users\\usuario\\agent_playground")
-    
-    uvicorn.run(app, host=host, port=port)
+        # HTTP/SSE for n8n and other integrations
+        host = os.getenv("MCP_HOST", "0.0.0.0")
+        port = int(os.getenv("MCP_PORT", "8000"))
+        
+        print(f"INFO: Starting MCP server on {host}:{port}")
+        print(f"INFO: SSE endpoint: http://{host}:{port}/sse")
+        
+        uvicorn.run(app, host=host, port=port)
