@@ -2,10 +2,22 @@ from typing import Dict, Any, Optional, List, Union
 import asyncio
 import os
 import importlib.util
+import json
+import re
 from dotenv import load_dotenv
+import logging
+import sys
 
 # Try to load environment variables from .env file
 load_dotenv()
+
+# Configure logging to stderr instead of stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stderr  # Important: use stderr, not stdout
+)
+logger = logging.getLogger(__name__)
 
 # Check if Crawl4AI is installed using importlib.util.find_spec
 CRAWL4AI_AVAILABLE = importlib.util.find_spec("crawl4ai") is not None
@@ -15,13 +27,60 @@ if CRAWL4AI_AVAILABLE:
         # Import Crawl4AI components
         from crawl4ai import AsyncWebCrawler
         from crawl4ai.async_configs import BrowserConfig, CrawlerRunConfig, CacheMode
-        print("INFO: Crawl4AI successfully imported")
+        logger.info("Crawl4AI successfully imported")
     except ImportError as e:
-        print(f"WARNING: Error importing Crawl4AI components: {str(e)}")
+        logger.warning(f"Error importing Crawl4AI components: {str(e)}")
         CRAWL4AI_AVAILABLE = False
 else:
-    print("WARNING: Crawl4AI is not installed. The web crawler tool will not be available.")
-    print("To install it, run: pip install crawl4ai playwright && playwright install")
+    logger.warning("Crawl4AI is not installed. The web crawler tool will not be available.")
+    logger.warning("To install it, run: pip install crawl4ai playwright && playwright install")
+
+def _clean_text_for_json(text: str) -> str:
+    """Clean text to ensure it's safe for JSON serialization."""
+    if not isinstance(text, str):
+        return str(text)
+    
+    # Remove or replace problematic characters
+    # Remove null bytes and other control characters
+    text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
+    
+    # Replace smart quotes and other unicode characters that might cause issues
+    replacements = {
+        '\u201c': '"',  # Left double quotation mark
+        '\u201d': '"',  # Right double quotation mark
+        '\u2018': "'",  # Left single quotation mark
+        '\u2019': "'",  # Right single quotation mark
+        '\u2013': '-',  # En dash
+        '\u2014': '--', # Em dash
+        '\u2026': '...', # Horizontal ellipsis
+        '\u00a0': ' ',  # Non-breaking space
+    }
+    
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    
+    # Ensure the text is valid UTF-8
+    try:
+        text.encode('utf-8')
+    except UnicodeEncodeError:
+        # If encoding fails, replace problematic characters
+        text = text.encode('utf-8', errors='replace').decode('utf-8')
+    
+    return text
+
+def _clean_dict_for_json(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively clean a dictionary to ensure JSON serialization works."""
+    cleaned = {}
+    for key, value in data.items():
+        if isinstance(value, str):
+            cleaned[key] = _clean_text_for_json(value)
+        elif isinstance(value, dict):
+            cleaned[key] = _clean_dict_for_json(value)
+        elif isinstance(value, list):
+            cleaned[key] = [_clean_text_for_json(item) if isinstance(item, str) else item for item in value]
+        else:
+            cleaned[key] = value
+    return cleaned
 
 async def crawl_webpage(
     url: str,
@@ -51,10 +110,10 @@ async def crawl_webpage(
     Returns:
         Dictionary containing the extracted content and metadata
     """
-    print(f"INFO: crawl_webpage called with URL: {url}, format: {output_format}")
+    logger.info(f"crawl_webpage called with URL: {url}, format: {output_format}")
     
     if wait_time is not None:
-        print("WARNING: 'wait_time' parameter is not supported in the current Crawl4AI version and will be ignored.")
+        logger.warning("'wait_time' parameter is not supported in the current Crawl4AI version and will be ignored.")
     
     if not CRAWL4AI_AVAILABLE:
         return {
@@ -91,57 +150,90 @@ async def crawl_webpage(
             result = await crawler.arun(url=url, config=run_config)
             
             if not result.success:
+                error_msg = getattr(result, 'error_message', 'Unknown error')
                 return {
-                    "error": f"Crawl failed: {result.error_message if hasattr(result, 'error_message') else 'Unknown error'}",
-                    "status_code": result.status_code if hasattr(result, 'status_code') else None,
+                    "error": f"Crawl failed: {_clean_text_for_json(str(error_msg))}",
+                    "status_code": getattr(result, 'status_code', None),
                     "status": "error"
                 }
             
             # Prepare response based on requested format
             response = {
-                "url": url,
-                "status_code": result.status_code if hasattr(result, 'status_code') else None,
+                "url": _clean_text_for_json(url),
+                "status_code": getattr(result, 'status_code', None),
                 "status": "success"
             }
             
             # Add page metadata if available
-            if hasattr(result, 'metadata'):
-                response["metadata"] = result.metadata
+            if hasattr(result, 'metadata') and result.metadata:
+                # Clean metadata for JSON serialization
+                cleaned_metadata = _clean_dict_for_json(result.metadata)
+                response["metadata"] = cleaned_metadata
                 # Add title from metadata if available
-                if result.metadata and 'title' in result.metadata:
-                    response["title"] = result.metadata['title']
+                if 'title' in cleaned_metadata:
+                    response["title"] = cleaned_metadata['title']
             
             # Add content based on requested format
             if output_format == "markdown" or output_format == "all":
-                if hasattr(result, 'markdown'):
-                    response["markdown"] = str(result.markdown)
+                if hasattr(result, 'markdown') and result.markdown:
+                    response["markdown"] = _clean_text_for_json(str(result.markdown))
             
             if output_format == "html" or output_format == "all":
-                if extract_main_content and hasattr(result, 'cleaned_html'):
-                    response["html"] = result.cleaned_html
-                elif hasattr(result, 'html'):
-                    response["html"] = result.html
+                if extract_main_content and hasattr(result, 'cleaned_html') and result.cleaned_html:
+                    response["html"] = _clean_text_for_json(result.cleaned_html)
+                elif hasattr(result, 'html') and result.html:
+                    response["html"] = _clean_text_for_json(result.html)
             
             if output_format == "text" or output_format == "all":
-                if hasattr(result, 'text'):
-                    response["text"] = result.text
-                elif hasattr(result, 'markdown'):
+                if hasattr(result, 'text') and result.text:
+                    response["text"] = _clean_text_for_json(result.text)
+                elif hasattr(result, 'markdown') and result.markdown:
                     # If no plain text is available, use the markdown as a fallback
-                    response["text"] = str(result.markdown)
+                    response["text"] = _clean_text_for_json(str(result.markdown))
             
-            # Include links if requested
-            if include_links and hasattr(result, 'links'):
-                response["links"] = result.links
+            # Include links if requested and available
+            if include_links and hasattr(result, 'links') and result.links:
+                # Clean links for JSON serialization
+                cleaned_links = []
+                for link in result.links:
+                    if isinstance(link, dict):
+                        cleaned_links.append(_clean_dict_for_json(link))
+                    else:
+                        cleaned_links.append(_clean_text_for_json(str(link)))
+                response["links"] = cleaned_links
                 
-            # Include images if requested
-            if include_images and hasattr(result, 'media') and 'images' in result.media:
-                response["images"] = result.media.get('images', [])
+            # Include images if requested and available
+            if include_images and hasattr(result, 'media') and result.media and 'images' in result.media:
+                images = result.media.get('images', [])
+                cleaned_images = []
+                for img in images:
+                    if isinstance(img, dict):
+                        cleaned_images.append(_clean_dict_for_json(img))
+                    else:
+                        cleaned_images.append(_clean_text_for_json(str(img)))
+                response["images"] = cleaned_images
+            
+            # Test JSON serialization before returning
+            try:
+                json.dumps(response, ensure_ascii=False)
+            except (TypeError, ValueError) as e:
+                logger.warning(f"JSON serialization test failed: {str(e)}")
+                # Return a simplified response if full response can't be serialized
+                return {
+                    "url": _clean_text_for_json(url),
+                    "status": "success",
+                    "warning": "Content contained characters that could not be properly serialized. Simplified response returned.",
+                    "title": response.get("title", ""),
+                    "content_length": len(str(response.get("markdown", response.get("text", ""))))
+                }
             
             return response
+            
     except Exception as e:
-        print(f"ERROR: crawl_webpage failed: {str(e)}")
+        error_msg = f"Tool execution failed: {str(e)}"
+        logger.error(f"crawl_webpage failed: {error_msg}")
         return {
-            "error": f"Tool execution failed: {str(e)}",
+            "error": _clean_text_for_json(error_msg),
             "status": "error"
         }
 
@@ -169,7 +261,7 @@ async def crawl_multiple_webpages(
     Returns:
         Dictionary containing the results for each URL
     """
-    print(f"INFO: crawl_multiple_webpages called with {len(urls)} URLs")
+    logger.info(f"crawl_multiple_webpages called with {len(urls)} URLs")
     
     if not CRAWL4AI_AVAILABLE:
         return {
@@ -196,17 +288,35 @@ async def crawl_multiple_webpages(
         tasks = [_crawl_with_semaphore(url) for url in urls]
         results = await asyncio.gather(*tasks)
         
-        return {
-            "results": {url: result for url, result in zip(urls, results)},
+        response = {
+            "results": {_clean_text_for_json(url): result for url, result in zip(urls, results)},
             "count": len(results),
             "successful": sum(1 for r in results if r.get("status") == "success"),
             "failed": sum(1 for r in results if r.get("status") == "error"),
             "status": "success"
         }
+        
+        # Test JSON serialization
+        try:
+            json.dumps(response, ensure_ascii=False)
+        except (TypeError, ValueError) as e:
+            logger.warning(f"JSON serialization test failed for multiple pages: {str(e)}")
+            # Return simplified response
+            return {
+                "count": len(results),
+                "successful": sum(1 for r in results if r.get("status") == "success"),
+                "failed": sum(1 for r in results if r.get("status") == "error"),
+                "warning": "Some content contained characters that could not be properly serialized.",
+                "status": "success"
+            }
+        
+        return response
+        
     except Exception as e:
-        print(f"ERROR: crawl_multiple_webpages failed: {str(e)}")
+        error_msg = f"Tool execution failed: {str(e)}"
+        logger.error(f"crawl_multiple_webpages failed: {error_msg}")
         return {
-            "error": f"Tool execution failed: {str(e)}",
+            "error": _clean_text_for_json(error_msg),
             "status": "error"
         }
 
@@ -237,7 +347,7 @@ async def extract_structured_data(
     Returns:
         Dictionary containing the extracted structured data
     """
-    print(f"INFO: extract_structured_data called with URL: {url}")
+    logger.info(f"extract_structured_data called with URL: {url}")
     
     if not CRAWL4AI_AVAILABLE:
         return {
@@ -270,37 +380,52 @@ async def extract_structured_data(
             result = await crawler.arun(url=url, config=run_config)
             
             if not result.success:
+                error_msg = getattr(result, 'error_message', 'Unknown error')
                 return {
-                    "error": f"Crawl failed: {result.error_message if hasattr(result, 'error_message') else 'Unknown error'}",
-                    "status_code": result.status_code if hasattr(result, 'status_code') else None,
+                    "error": f"Crawl failed: {_clean_text_for_json(str(error_msg))}",
+                    "status_code": getattr(result, 'status_code', None),
                     "status": "error"
                 }
             
             # Extract structured data from result
+            extracted_data = None
             if hasattr(result, 'extracted_content') and result.extracted_content:
-                return {
-                    "url": url,
-                    "data": result.extracted_content,
+                extracted_data = result.extracted_content
+            elif hasattr(result, 'extraction_result') and result.extraction_result:
+                extracted_data = result.extraction_result
+            
+            if extracted_data:
+                response = {
+                    "url": _clean_text_for_json(url),
+                    "data": _clean_dict_for_json(extracted_data) if isinstance(extracted_data, dict) else extracted_data,
                     "status": "success"
                 }
-            else:
-                # Try to look for extraction_result if extracted_content is not available
-                if hasattr(result, 'extraction_result') and result.extraction_result:
+                
+                # Test JSON serialization
+                try:
+                    json.dumps(response, ensure_ascii=False)
+                except (TypeError, ValueError) as e:
+                    logger.warning(f"JSON serialization test failed for structured data: {str(e)}")
                     return {
-                        "url": url,
-                        "data": result.extraction_result,
+                        "url": _clean_text_for_json(url),
+                        "warning": "Extracted data contained characters that could not be properly serialized.",
+                        "data_type": str(type(extracted_data)),
                         "status": "success"
                     }
-                else:
-                    return {
-                        "url": url,
-                        "error": "No structured data could be extracted with the provided schema",
-                        "status": "error"
-                    }
+                
+                return response
+            else:
+                return {
+                    "url": _clean_text_for_json(url),
+                    "error": "No structured data could be extracted with the provided schema",
+                    "status": "error"
+                }
+                
     except Exception as e:
-        print(f"ERROR: extract_structured_data failed: {str(e)}")
+        error_msg = f"Tool execution failed: {str(e)}"
+        logger.error(f"extract_structured_data failed: {error_msg}")
         return {
-            "error": f"Tool execution failed: {str(e)}",
+            "error": _clean_text_for_json(error_msg),
             "status": "error"
         }
 
@@ -310,5 +435,6 @@ def register(mcp_instance):
         mcp_instance.tool()(crawl_webpage)
         mcp_instance.tool()(crawl_multiple_webpages)
         mcp_instance.tool()(extract_structured_data)
+        logger.info("Crawl4AI tools registered successfully with improved JSON handling")
     else:
-        print("WARNING: Crawl4AI tools were not registered because Crawl4AI is not installed.")
+        logger.warning("Crawl4AI tools were not registered because Crawl4AI is not installed.")

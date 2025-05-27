@@ -1,6 +1,8 @@
 import asyncio
 import os
 from typing import Any, Dict, List
+import logging
+import sys
 
 import httpx
 from fastmcp import FastMCP
@@ -32,6 +34,14 @@ try:
 except ImportError:
     pass
 
+# Configure logging to stderr instead of stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stderr  # Important: use stderr, not stdout
+)
+logger = logging.getLogger(__name__)
+
 # --- Server Configuration ---
 MCP_SERVER_NAME = os.getenv("MCP_SERVER_NAME", "enhanced-mcp-server")
 
@@ -39,7 +49,7 @@ MCP_SERVER_NAME = os.getenv("MCP_SERVER_NAME", "enhanced-mcp-server")
 mcp = FastMCP(MCP_SERVER_NAME)
 
 # --- Register Tools ---
-print("INFO: Registering tools...")
+logger.info("Registering tools...")
 
 # Core tools
 calculator_tool.register(mcp)
@@ -62,7 +72,7 @@ google_slides_tool.register(mcp)
 file_system_tool.register(mcp)
 file_writing_tool.register(mcp)  # NEW: Register file writing tools
 
-print("INFO: All tools registered successfully")
+logger.info("All tools registered successfully")
 
 # --- Starlette App Setup ---
 try:
@@ -72,9 +82,9 @@ try:
             Mount("/", app=sse_application, name="mcp_sse_app"),
         ]
     )
-    print("INFO: Using mcp.sse_app() for routing.")
+    logger.info("Using mcp.sse_app() for routing.")
 except AttributeError:
-    print("WARNING: mcp.sse_app() not found. Using fallback handlers.")
+    logger.warning("mcp.sse_app() not found. Using fallback handlers.")
     async def fallback_handle_sse(scope, receive, send):
         await send({'type': 'http.response.start', 'status': 501, 'headers': [(b'content-type', b'text/plain')]})
         await send({'type': 'http.response.body', 'body': b'Fallback SSE handler - mcp.sse_app() not found!', 'more_body': False})
@@ -98,21 +108,21 @@ if __name__ == "__main__":
     # List registered tools
     if hasattr(mcp, '_tool_manager') and hasattr(mcp._tool_manager, '_tools'):
         registered_tools = list(mcp._tool_manager._tools.keys())
-        print(f"INFO: Registered {len(registered_tools)} tools:")
+        logger.info(f"Registered {len(registered_tools)} tools:")
         for tool in sorted(registered_tools):
-            print(f"  - {tool}")
+            logger.info(f"  - {tool}")
     
     # Check if running from Claude Desktop (has specific env or args pattern)
     if len(sys.argv) == 1 and not os.getenv("MCP_FORCE_HTTP"):
         # Default to stdio for Claude Desktop
-        print("INFO: Starting MCP server with stdio transport for Claude Desktop")
+        logger.info("Starting MCP server with stdio transport for Claude Desktop")
         mcp.run(transport="stdio")
     else:
         # HTTP/SSE for n8n and other integrations
         host = os.getenv("MCP_HOST", "0.0.0.0")
         port = int(os.getenv("MCP_PORT", "8000"))
         
-        print(f"INFO: Starting MCP server on {host}:{port}")
-        print(f"INFO: SSE endpoint: http://{host}:{port}/sse")
+        logger.info(f"Starting MCP server on {host}:{port}")
+        logger.info(f"SSE endpoint: http://{host}:{port}/sse")
         
         uvicorn.run(app, host=host, port=port)
