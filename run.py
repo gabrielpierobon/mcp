@@ -27,6 +27,8 @@ from tools import google_slides_tool
 from tools import file_system_tool
 from tools import file_writing_tool  # NEW: File writing capabilities
 
+from tools import screen_capture_tool
+
 # Optional: Load .env file for local development
 try:
     from dotenv import load_dotenv
@@ -71,6 +73,8 @@ google_slides_tool.register(mcp)
 # File system tools (read-only and write capabilities)
 file_system_tool.register(mcp)
 file_writing_tool.register(mcp)  # NEW: Register file writing tools
+
+screen_capture_tool.register(mcp)
 
 logger.info("All tools registered successfully")
 
