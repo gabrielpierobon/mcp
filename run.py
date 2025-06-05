@@ -1,132 +1,111 @@
-import asyncio
-import os
-from typing import Any, Dict, List
-import logging
+#!/usr/bin/env python3
+"""
+Smart MCP Server Launcher
+Automatically detects the best transport mode or allows explicit selection.
+
+Usage:
+  python run.py              # Auto-detect (stdio for Claude, HTTP for others)
+  python run.py --http       # Force HTTP mode for n8n
+  python run.py --stdio      # Force stdio mode for Claude Desktop
+  python run.py --help       # Show help
+"""
+
 import sys
+import os
+import argparse
 
-import httpx
-from fastmcp import FastMCP
-from starlette.applications import Starlette
-from starlette.routing import Mount
-import uvicorn
-
-# Import tool registration functions
-from tools import calculator_tool
-from tools import get_weather_tool
-from tools import brave_search
-from tools import crawl4ai_tool
-from tools import airtable_tool
-from tools import playwright_browser_tool
-
-# Import Google Workspace tools (separate modules)
-from tools import google_sheets_tool
-from tools import google_docs_tool
-from tools import google_slides_tool
-
-# Import file system tools (read and write)
-from tools import file_system_tool
-from tools import file_writing_tool  # NEW: File writing capabilities
-
-from tools import screen_capture_tool
-
-# Optional: Load .env file for local development
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
-# Configure logging to stderr instead of stdout
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr  # Important: use stderr, not stdout
-)
-logger = logging.getLogger(__name__)
-
-# --- Server Configuration ---
-MCP_SERVER_NAME = os.getenv("MCP_SERVER_NAME", "enhanced-mcp-server")
-
-# Initialize FastMCP server
-mcp = FastMCP(MCP_SERVER_NAME)
-
-# --- Register Tools ---
-logger.info("Registering tools...")
-
-# Core tools
-calculator_tool.register(mcp)
-get_weather_tool.register(mcp)
-brave_search.register(mcp)
-
-# Web automation tools
-crawl4ai_tool.register(mcp)
-playwright_browser_tool.register(mcp)
-
-# Data management tools
-airtable_tool.register(mcp)
-
-# Google Workspace tools
-google_sheets_tool.register(mcp)
-google_docs_tool.register(mcp)
-google_slides_tool.register(mcp)
-
-# File system tools (read-only and write capabilities)
-file_system_tool.register(mcp)
-file_writing_tool.register(mcp)  # NEW: Register file writing tools
-
-screen_capture_tool.register(mcp)
-
-logger.info("All tools registered successfully")
-
-# --- Starlette App Setup ---
-try:
-    sse_application = mcp.sse_app()
-    app = Starlette(
-        routes=[
-            Mount("/", app=sse_application, name="mcp_sse_app"),
-        ]
-    )
-    logger.info("Using mcp.sse_app() for routing.")
-except AttributeError:
-    logger.warning("mcp.sse_app() not found. Using fallback handlers.")
-    async def fallback_handle_sse(scope, receive, send):
-        await send({'type': 'http.response.start', 'status': 501, 'headers': [(b'content-type', b'text/plain')]})
-        await send({'type': 'http.response.body', 'body': b'Fallback SSE handler - mcp.sse_app() not found!', 'more_body': False})
+def detect_claude_desktop():
+    """Detect if running from Claude Desktop environment."""
+    # Claude Desktop typically sets specific environment variables
+    claude_indicators = [
+        "CLAUDE_DESKTOP",
+        "ANTHROPIC_CLIENT"
+    ]
     
-    async def fallback_handle_messages_post(scope, receive, send):
-        await send({'type': 'http.response.start', 'status': 501, 'headers': [(b'content-type', b'text/plain')]})
-        await send({'type': 'http.response.body', 'body': b'Fallback POST handler - mcp.sse_app() not found!', 'more_body': False})
+    for indicator in claude_indicators:
+        if os.getenv(indicator):
+            return True
     
-    app = Starlette(
-        routes=[
-            Mount("/sse", app=fallback_handle_sse, name="sse_endpoint"),
-            Mount("/messages", app=fallback_handle_messages_post, name="message_post_endpoint"),
-        ]
-    )
-
-# --- Main Execution ---
-if __name__ == "__main__":
-    # Detect if running from Claude Desktop (stdio) or standalone (HTTP)
-    import sys
-    
-    # List registered tools
-    if hasattr(mcp, '_tool_manager') and hasattr(mcp._tool_manager, '_tools'):
-        registered_tools = list(mcp._tool_manager._tools.keys())
-        logger.info(f"Registered {len(registered_tools)} tools:")
-        for tool in sorted(registered_tools):
-            logger.info(f"  - {tool}")
-    
-    # Check if running from Claude Desktop (has specific env or args pattern)
+    # Check if running with no arguments and no explicit HTTP request
     if len(sys.argv) == 1 and not os.getenv("MCP_FORCE_HTTP"):
-        # Default to stdio for Claude Desktop
-        logger.info("Starting MCP server with stdio transport for Claude Desktop")
-        mcp.run(transport="stdio")
+        # Check for TTY - Claude Desktop usually doesn't have one
+        if not sys.stdin.isatty():
+            return True
+    
+    return False
+
+def show_help():
+    """Show help information."""
+    print("""
+MCP Server Launcher
+
+🤖 For Claude Desktop:
+  python run.py              # Auto-detect mode
+  python run.py --stdio      # Force stdio mode
+  python run_claude.py       # Dedicated Claude launcher
+
+🌐 For n8n Integration:
+  python run.py --http       # Force HTTP mode  
+  python run_http.py         # Dedicated n8n launcher
+
+🔧 Environment Variables:
+  MCP_SERVER_NAME            # Server name (default: auto)
+  MCP_HOST                   # HTTP host (default: 0.0.0.0)
+  MCP_PORT                   # HTTP port (default: 8000)
+  MCP_FORCE_HTTP=1           # Force HTTP mode
+  
+  BRAVE_API_KEY              # Required for web search
+  AIRTABLE_PERSONAL_ACCESS_TOKEN  # Required for Airtable
+  GOOGLE_CREDENTIALS_FILE    # Optional for Google Workspace
+
+📚 Documentation:
+  docs/tools.md              # Complete tools documentation
+  README.md                  # Setup and configuration guide
+""")
+
+def main():
+    """Main launcher function."""
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="MCP Server Launcher",
+        add_help=False  # We'll handle help ourselves
+    )
+    parser.add_argument("--http", action="store_true", help="Force HTTP mode for n8n")
+    parser.add_argument("--stdio", action="store_true", help="Force stdio mode for Claude Desktop")
+    parser.add_argument("--help", "-h", action="store_true", help="Show help")
+    
+    args, unknown = parser.parse_known_args()
+    
+    # Show help if requested
+    if args.help:
+        show_help()
+        return
+    
+    # Determine the mode
+    if args.http:
+        print("🌐 Launching HTTP server for n8n integration...", file=sys.stderr)
+        os.environ["MCP_FORCE_HTTP"] = "1"
+        import run_http
+        run_http.main()
+        
+    elif args.stdio:
+        print("🤖 Launching stdio server for Claude Desktop...", file=sys.stderr)
+        import run_claude
+        run_claude.main()
+        
     else:
-        # HTTP/SSE for n8n and other integrations
-        host = os.getenv("MCP_HOST", "0.0.0.0")
-        port = int(os.getenv("MCP_PORT", "8000"))
-        
-        logger.info(f"Starting MCP server on {host}:{port}")
-        logger.info(f"SSE endpoint: http://{host}:{port}/sse")
-        
-        uvicorn.run(app, host=host, port=port)
+        # Auto-detect mode
+        if detect_claude_desktop() or os.getenv("MCP_FORCE_STDIO"):
+            print("🤖 Auto-detected: Launching stdio server for Claude Desktop...", file=sys.stderr)
+            import run_claude
+            run_claude.main()
+        else:
+            print("🌐 Auto-detected: Launching HTTP server for external integration...", file=sys.stderr)
+            print("💡 Use 'python run.py --stdio' to force Claude Desktop mode", file=sys.stderr)
+            os.environ["MCP_FORCE_HTTP"] = "1"
+            import run_http
+            run_http.main()
+
+if __name__ == "__main__":
+    main()

@@ -1,6 +1,6 @@
 # MCP Server for AI Integration
 
-A comprehensive Model Context Protocol (MCP) server built with FastMCP 2.0 that provides AI agents with access to a powerful suite of tools and services. This modular, extensible server enables seamless integration with various platforms, APIs, and automation workflows.
+A comprehensive Model Context Protocol (MCP) server built with FastMCP 2.5+ that provides AI agents with access to a powerful suite of tools and services. This modular, extensible server enables seamless integration with various platforms, APIs, and automation workflows.
 
 ## 🚀 Overview
 
@@ -10,10 +10,12 @@ The Model Context Protocol (MCP) allows AI agents to interact with external tool
 - **🌤️ Real-time Data**: Weather information and forecasts worldwide
 - **🧮 Calculations**: Mathematical operations with error handling
 - **📂 File System Access**: Read and explore local files and directories
+- **📝 File Creation**: Write files and create project structures in secure sandbox
+- **🖥️ Screen Capture**: Revolutionary visual context with [CAPTURE] keyword integration
 - **🕷️ Web Automation**: Browser control and website content extraction
 - **📊 Data Management**: Airtable database operations and structured data handling
-- **📝 Document Creation**: Google Workspace integration (Sheets, Docs, Slides)
-- **🔗 Platform Integration**: Ready for n8n, Claude Desktop, and custom applications
+- **📄 Document Creation**: Google Workspace integration (Sheets, Docs, Slides)
+- **🔗 Platform Integration**: Optimized for n8n, Claude Desktop, and custom applications
 
 ## ✨ Key Features
 
@@ -25,6 +27,8 @@ The Model Context Protocol (MCP) allows AI agents to interact with external tool
 
 ### 📊 Data & Productivity
 - **File System Access**: Read local files, explore directories, search content with secure read-only access
+- **File Writing**: Create files and project structures in secure sandbox environment
+- **Screen Capture**: **🆕 Revolutionary** visual context with [CAPTURE] keyword integration
 - **Airtable Management**: Create bases, manage tables, search records with template library
 - **Google Sheets**: Create spreadsheets, manipulate data, collaborative editing
 - **Google Docs**: Document creation, content editing, and collaborative writing
@@ -32,10 +36,11 @@ The Model Context Protocol (MCP) allows AI agents to interact with external tool
 - **Calculator**: Reliable arithmetic operations with comprehensive error handling
 
 ### 🏗️ Architecture Highlights
-- **FastMCP 2.0**: Built on the latest MCP framework for optimal performance
+- **FastMCP 2.5+**: Built on the latest MCP framework for optimal performance
+- **Smart Launcher**: Intelligent routing between Claude Desktop and n8n modes
 - **Modular Design**: Tools in separate modules for easy management and extension
 - **Session Context**: Smart memory for recent operations and created documents
-- **SSE Support**: Server-Sent Events for real-time communication
+- **Multiple Transports**: SSE for n8n, stdio for Claude Desktop
 - **Flexible Authentication**: OAuth2, Bearer tokens, and API key support
 - **Error Resilience**: Comprehensive error handling with graceful degradation
 
@@ -81,6 +86,9 @@ GOOGLE_TOKEN_FILE=token.json
 For enhanced functionality, install additional tools:
 
 ```bash
+# Screen capture (NEW!)
+pip install mss pillow pyautogui
+
 # Web crawling and browser automation
 pip install crawl4ai playwright
 playwright install
@@ -91,23 +99,83 @@ pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-pyt
 
 ### 4. Launch the Server
 
+**🆕 New Smart Launcher System:**
+
 ```bash
+# Smart auto-detection (recommended)
 python run.py
+
+# Explicit modes
+python run.py --http    # For n8n integration
+python run.py --stdio   # For Claude Desktop
+python run.py --help    # Show help
+
+# Direct server files
+python run_http.py      # Dedicated n8n server
+python run_claude.py    # Dedicated Claude Desktop server
 ```
 
-Your server will be available at:
-- **Base URL**: `http://localhost:8000`
-- **SSE Endpoint**: `http://localhost:8000/sse`
-- **MCP Protocol**: Ready for AI agent connections
+## 🔧 Server Modes
+
+### 🌐 **For n8n Integration**
+
+```bash
+python run_http.py
+# OR
+python run.py --http
+```
+
+**n8n MCP Client Tool Configuration:**
+- **SSE Endpoint**: `http://host.docker.internal:8000/sse`
+- **Authentication**: None
+- **Tools**: All or Selected
+
+**Server Features:**
+- ✅ SSE transport optimized for n8n
+- ✅ Comprehensive error handling
+- ✅ All 68+ tools available
+- ✅ Environment validation and status
+
+### 🤖 **For Claude Desktop**
+
+```bash
+python run_claude.py
+# OR  
+python run.py --stdio
+```
+
+**Claude Desktop Configuration:**
+```json
+{
+  "mcpServers": {
+    "enhanced-mcp-server": {
+      "command": "python",
+      "args": ["/absolute/path/to/run_claude.py"],
+      "env": {
+        "BRAVE_API_KEY": "your_brave_api_key",
+        "AIRTABLE_PERSONAL_ACCESS_TOKEN": "your_airtable_token"
+      }
+    }
+  }
+}
+```
+
+**Server Features:**
+- ✅ stdio transport for Claude Desktop
+- ✅ Organized tool logging by category
+- ✅ [CAPTURE] keyword support
+- ✅ Session memory for created documents
 
 ## 🛠️ Tool Categories
 
 | Category | Tools | API Required | Status |
 |----------|-------|--------------|--------|
+| **🆕 Screen Capture** | [CAPTURE] visual context | None | ✅ Core |
 | **Search & Web** | 2 web search tools | Brave API | ✅ Core |
 | **Weather** | Global weather data | None (Open-Meteo) | ✅ Core |
 | **Calculator** | Arithmetic operations | None | ✅ Core |
-| **File System** | 5 file/directory tools | None | ✅ Core |
+| **File System** | 6 file/directory tools | None | ✅ Core |
+| **File Writing** | 5 file creation tools | None | ✅ Core |
 | **Web Automation** | 3 crawling + 10 browser tools | None (local) | ⚡ Optional |
 | **Airtable** | 15+ database tools | Airtable Token | ✅ Core |
 | **Google Sheets** | 8 spreadsheet tools | Google OAuth2 | ⚡ Optional |
@@ -115,33 +183,56 @@ Your server will be available at:
 | **Google Slides** | 10 presentation tools | Google OAuth2 | ⚡ Optional |
 
 ### Core Tools (Always Available)
+- `quick_capture`, `detect_and_capture` - **🆕 Revolutionary** screen capture with [CAPTURE] keyword
 - `brave_web_search`, `brave_local_search` - Web and local business search
 - `get_weather` - Current weather and forecasts for any location
 - `calculator` - Basic arithmetic with error handling
-- `get_system_info`, `read_file`, `list_directory` - File system exploration
+- `get_system_info`, `read_file`, `list_directory`, `find_directory` - File system exploration
+- `write_file`, `create_project_structure` - **🆕** Secure file creation in sandbox
 - `create_airtable_base`, `list_records`, etc. - Database management
 
-### Smart Context Features
+### 🆕 Revolutionary Features
+
+#### **Screen Capture with [CAPTURE] Keyword**
+- **Natural Integration**: Use `[CAPTURE]` in any message for instant screenshots
+- **Context Aware**: AI understands your screen and provides targeted guidance
+- **Cross-Platform**: Works on Windows, macOS, Linux
+- **Clipboard Direct**: Screenshots copied directly to clipboard for instant sharing
+
+**Usage Examples:**
+```
+[CAPTURE] I need help with this dialog
+[CAPTURE] What should I click next?
+[CAPTURE] I'm getting an error
+[CAPTURE]  # General screen capture
+```
+
+#### **Secure File Writing Sandbox**
+- **Playground Directory**: `C:\Users\usuario\agent_playground`
+- **Complete Isolation**: Cannot write outside designated directory
+- **Project Templates**: Web, Python, React, and general project structures
+- **Safe Operations**: Path validation prevents security issues
+
+#### **Smart Context Features**
 - **Session Memory**: Tracks recently created documents and spreadsheets
 - **Title Search**: Find documents by name without IDs
 - **Auto-append**: Add to most recent spreadsheet/document
 - **Template Library**: Pre-built Airtable templates (CRM, project management, etc.)
-- **File System Navigation**: Supports `~` for home directory, cross-platform paths
 
 ## 🔌 Integration Examples
 
 ### n8n Workflow Integration
 
 1. Add **MCP Client Tool** node to your workflow
-2. Configure the SSE endpoint: `http://your-server:8000/sse`
+2. Configure the SSE endpoint: `http://host.docker.internal:8000/sse`
 3. Select which tools to expose to your AI agent
 4. Configure authentication if required
 
 ```json
 {
-  "endpoint": "http://localhost:8000/sse",
-  "authentication": "bearer",
-  "tools": ["brave_web_search", "get_weather", "read_file", "create_google_sheet"]
+  "endpoint": "http://host.docker.internal:8000/sse",
+  "authentication": "none",
+  "tools": ["brave_web_search", "get_weather", "quick_capture", "read_file", "create_google_sheet"]
 }
 ```
 
@@ -154,7 +245,7 @@ Add to your Claude Desktop configuration:
   "mcpServers": {
     "enhanced-mcp-server": {
       "command": "python",
-      "args": ["/absolute/path/to/run.py"],
+      "args": ["/absolute/path/to/run_claude.py"],
       "env": {
         "BRAVE_API_KEY": "your_brave_api_key",
         "AIRTABLE_PERSONAL_ACCESS_TOKEN": "your_airtable_token"
@@ -185,13 +276,28 @@ async def call_mcp_tool():
 
 ## 📊 Advanced Features
 
+### 🆕 Screen Capture Integration
+Revolutionary visual context for AI agents:
+- **Desktop Awareness**: AI can now "see" your screen in real-time
+- **[CAPTURE] Keyword**: Natural language integration with simple keyword
+- **Workflow Guidance**: Get help with any desktop application
+- **Error Troubleshooting**: Visual debugging of problems
+- **Multi-Monitor Support**: Capture specific monitors or regions
+
 ### File System Integration
 Secure, read-only access to local files:
 - **Cross-Platform**: Works on Windows, Linux, and macOS
 - **Smart Path Handling**: Supports `~` for home directory and environment variables
 - **Content Search**: Find files by name patterns or content
-- **Size Controls**: Configurable limits prevent memory issues
+- **Token Efficient**: Enhanced limits prevent expensive API calls
 - **Permission Aware**: Respects file system permissions
+
+### 🆕 File Writing Capabilities
+Secure file creation in sandbox environment:
+- **Sandbox Security**: All operations limited to `C:\Users\usuario\agent_playground`
+- **Project Templates**: Complete project structures (Web, Python, React, General)
+- **Batch Operations**: Write multiple files efficiently
+- **Path Validation**: Prevents directory traversal attacks
 
 ### Airtable Template System
 Create production-ready bases instantly:
@@ -237,7 +343,7 @@ def register(mcp_instance):
     mcp_instance.tool()(my_function)
 ```
 
-2. Import and register in `run.py`:
+2. Import and register in server files:
 
 ```python
 from tools import my_tool
@@ -253,8 +359,9 @@ uv pip install pytest python-dotenv
 # Run tests
 pytest tests/
 
-# Test specific tools
-python -m tests.test_mcp_crawler
+# Test specific modes
+python run.py --http   # Test n8n integration
+python run.py --stdio  # Test Claude Desktop
 ```
 
 ## 🔐 API Setup & Costs
@@ -276,6 +383,8 @@ python -m tests.test_mcp_crawler
 - Usage: Sheets, Docs, and Slides integration
 
 ### Free Services
+- **🆕 Screen Capture**: Local screen capture (no external dependencies)
+- **🆕 File Writing**: Local file creation (no external dependencies)
 - **Weather**: Open-Meteo API (unlimited)
 - **Calculator**: Built-in functionality
 - **File System**: Local file access (no external dependencies)
@@ -290,6 +399,8 @@ python -m tests.test_mcp_crawler
 - **[MCP Protocol Guide](docs/mcp.md)** - Understanding the Model Context Protocol
 
 ### Individual Tool Documentation
+- **[🆕 Screen Capture Tools](docs/tools/screen-capture-tools.md)** - Revolutionary visual context
+- **[🆕 File Writing Tools](docs/tools/file-writing-tools.md)** - Secure file creation
 - [Web Search Tools](docs/tools/web-search-tools.md)
 - [Weather Tools](docs/tools/weather-tools.md) 
 - [Calculator Tools](docs/tools/calculator-tools.md)
@@ -303,7 +414,7 @@ python -m tests.test_mcp_crawler
 
 ## 🚀 Production Deployment
 
-### Docker Deployment (Example)
+### Docker Deployment
 
 ```dockerfile
 FROM python:3.11-slim
@@ -313,10 +424,10 @@ COPY . .
 RUN pip install -r requirements.txt
 
 # Install optional dependencies
-RUN pip install crawl4ai playwright && playwright install --with-deps
+RUN pip install crawl4ai playwright mss pillow && playwright install --with-deps
 
 EXPOSE 8000
-CMD ["python", "run.py"]
+CMD ["python", "run_http.py"]
 ```
 
 ### Environment Variables
@@ -332,6 +443,26 @@ BRAVE_API_KEY=${BRAVE_API_KEY}
 AIRTABLE_PERSONAL_ACCESS_TOKEN=${AIRTABLE_TOKEN}
 ```
 
+### Service Configuration
+
+**For n8n Integration:**
+```bash
+# Production n8n server
+python run_http.py
+```
+
+**For Claude Desktop:**
+```bash
+# Claude Desktop integration
+python run_claude.py
+```
+
+**For Auto-Detection:**
+```bash
+# Smart launcher (adapts to environment)
+python run.py
+```
+
 ## 🛡️ Security & Best Practices
 
 ### API Key Security
@@ -341,8 +472,10 @@ AIRTABLE_PERSONAL_ACCESS_TOKEN=${AIRTABLE_TOKEN}
 - Rotate keys regularly and update access
 
 ### File System Security
-- Read-only access prevents accidental system modification
-- File size limits (50MB default) prevent memory exhaustion
+- **🆕 File Writing**: Sandbox restrictions limit operations to designated directory
+- **Read-only access**: File system tools prevent accidental system modification
+- **🆕 Screen capture**: Uses local clipboard only, no file storage
+- File size limits prevent memory exhaustion
 - Path validation prevents directory traversal attacks
 - Permission respect maintains existing security boundaries
 
@@ -351,6 +484,39 @@ AIRTABLE_PERSONAL_ACCESS_TOKEN=${AIRTABLE_TOKEN}
 - Monitor tool usage through logging
 - Implement rate limiting for production deployments
 - Review and audit tool access regularly
+
+## 🎯 New Workflows & Use Cases
+
+### **🆕 Visual Desktop Assistance**
+1. **Screen Capture** → See what's currently displayed
+2. **Context Analysis** → AI understands your desktop environment  
+3. **Specific Guidance** → Get targeted help with UI elements
+4. **Error Resolution** → Visual troubleshooting of problems
+
+### **🆕 Development Project Creation**
+1. **Screen Capture** → Document current development setup
+2. **Web Search** → Research best practices
+3. **File Writing** → Create project structure with templates
+4. **File Writing** → Generate source code files
+5. **File System** → Read existing code for reference
+6. **Google Docs** → Document the project
+
+### Research and Documentation
+1. **Web Search** → Find relevant information
+2. **Web Crawling** → Extract detailed content
+3. **File System** → Read local research files
+4. **🆕 Screen Capture** → Document current desktop state
+5. **🆕 File Writing** → Create organized documentation
+6. **Airtable** → Organize findings
+
+### Data Collection and Analysis
+1. **Web Search** → Gather data sources
+2. **🆕 Screen Capture** → Document data visualization dashboards
+3. **Weather** → Collect environmental data
+4. **File System** → Read local data files
+5. **Calculator** → Perform calculations
+6. **🆕 File Writing** → Save processed results
+7. **Google Sheets** → Analyze and visualize
 
 ## 🤝 Contributing
 
@@ -369,20 +535,25 @@ We welcome contributions! Please:
 - Documentation improvements
 - Testing and quality assurance
 
-## 📞 Support & Community
-
-- **Issues**: Report bugs and request features via [GitHub Issues](https://github.com/your-repo/issues)
-- **Documentation**: Complete tool docs in the `docs/` directory
-- **Examples**: Usage examples and workflows in `examples/` directory
-
 ## 🏆 Built With
 
-- **[FastMCP 2.0](https://gofastmcp.com)** - The fast, Pythonic way to build MCP servers
+- **[FastMCP 2.5+](https://gofastmcp.com)** - The fast, Pythonic way to build MCP servers
 - **[Brave Search](https://api.search.brave.com)** - Privacy-focused web search
 - **[Open-Meteo](https://open-meteo.com)** - Free weather API
 - **[Crawl4AI](https://github.com/unclecode/crawl4ai)** - AI-friendly web crawling
 - **[Playwright](https://playwright.dev)** - Browser automation
 - **[Google APIs](https://developers.google.com)** - Workspace integration
+- **🆕 [MSS](https://python-mss.readthedocs.io)** - Fast cross-platform screenshots
+
+## 📝 Recent Updates
+
+### **🆕 Version 2.5+ Features**
+- **Revolutionary Screen Capture**: [CAPTURE] keyword integration for visual context
+- **Secure File Writing**: Sandbox environment for safe file creation
+- **Smart Launcher**: Intelligent routing between Claude Desktop and n8n modes
+- **Enhanced File System**: Token-efficient operations with improved limits
+- **Project Templates**: Complete project structures for Web, Python, React
+- **Improved Documentation**: Comprehensive guides for all features
 
 ## 📄 License
 
@@ -390,4 +561,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Ready to supercharge your AI workflows?** Get started with the installation guide above and explore the comprehensive tool documentation to unlock the full potential of your AI agents.
+**Ready to supercharge your AI workflows?** Get started with the installation guide above and explore the comprehensive tool documentation to unlock the full potential of your AI agents with revolutionary visual context and secure file operations!

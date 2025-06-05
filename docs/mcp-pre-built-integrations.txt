@@ -1,0 +1,122 @@
+All Collections
+Claude.ai
+Using Claude.ai
+Pre-built Integrations Using Remote MCP
+Pre-built Integrations Using Remote MCP
+Updated today
+Integrations using remote MCP are now available to all paid Claude.ai plans, including Pro. Learn more about custom integrations using remote MCP here.
+
+Connect your favorite tools and data sources to Claude.
+
+ 
+
+The list below only includes integrations provided by initial launch partners announced in the Anthropic blog. You can also connect Claude to any integrations built by your favorite companies and software providers, or to custom integrations built by yourself or your organization.
+
+Integration
+
+Description
+
+Integration URL
+
+Asana
+
+Create, search, and assign tasks and deliverables
+
+https://mcp.asana.com/sse
+
+Atlassian
+
+Track issues, manage sprints, create docs, and search knowledge bases
+
+https://mcp.atlassian.com/v1/sse
+
+Cloudflare
+
+Build, manage, and debug cloud services
+
+Visit https://github.com/cloudflare/mcp-server-cloudflare
+
+Intercom
+
+Analyze support trends and triage customer issues
+
+https://mcp.intercom.com/sse
+
+Linear
+
+Search for and create issues, projects, and comments
+
+https://mcp.linear.app/sse
+
+PayPal
+
+Create and manage invoices, and analyze sales activity
+
+https://mcp.paypal.com/sse
+
+Plaid
+
+Analyze metrics, usage, and support tickets
+
+https://api.dashboard.plaid.com/mcp/sse
+
+Sentry
+
+Search, query, and debug errors intelligently
+
+https://mcp.sentry.dev/sse
+
+Square
+
+Search and manage transaction, merchant, and payment data
+
+https://mcp.squareup.com/sse
+
+Zapier
+
+Automate workflows across thousands of apps via conversation
+
+Visit https://mcp.zapier.com/
+
+ 
+This list just encapsulates integrations provided by initial launch partners. You can also connect Claude to any additional integrations built by your favorite companies and software providers, or to custom integrations built by yourself or your organization.
+
+ 
+
+Adding Integrations to Claude.ai
+To add these integrations, or others, to Claude.ai:
+
+Navigate to Settings > Integrations
+
+For Enterprise or Team plans, click the “Organization integrations” tab
+
+Click “Add integration”
+
+In the modal:
+
+Integration name: Enter any name for the integration
+
+For example, to use the Asana integration, you might enter “Asana”
+
+Integration URL: Enter the URL for the integration
+
+For example, to use the Asana integration, paste in the URL https://mcp.asana.com/sse from the list above
+
+Click “Add”
+
+Click “Connect” to authenticate with the integration
+
+ 
+
+
+ 
+
+See this page for more details on how to add and use Integrations.
+
+Related Articles
+Using the Google Drive Integration
+Enabling and Using Web Search
+Using the Gmail and Google Calendar Integrations
+About Custom Integrations Using Remote MCP
+Building Custom Integrations via Remote MCP Servers
+Did this answer your question?
