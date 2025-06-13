@@ -23,6 +23,7 @@ from tools import google_slides_tool
 from tools import file_system_tool
 from tools import file_writing_tool
 from tools import screen_capture_tool
+from tools import rag_knowledge_base_tool
 
 # Optional: Load .env file for local development
 try:
@@ -71,6 +72,8 @@ playwright_browser_tool.register(mcp)
 google_sheets_tool.register(mcp)
 google_docs_tool.register(mcp)
 google_slides_tool.register(mcp)
+
+rag_knowledge_base_tool.register(mcp)
 
 # Count registered tools
 if hasattr(mcp, '_tool_manager') and hasattr(mcp._tool_manager, '_tools'):

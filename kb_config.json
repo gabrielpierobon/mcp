@@ -1,0 +1,33 @@
+{
+    "version": "1.0.0",
+    "description": "RAG Knowledge Base Configuration for MCP Server",
+    "embedding": {
+        "model_name": "BAAI/bge-m3",
+        "model_type": "sentence-transformers",
+        "embedding_dimension": 1024,
+        "max_sequence_length": 8192,
+        "normalize_embeddings": true
+    },
+    "chunking": {
+        "strategy": "fixed_size",
+        "chunk_size": 1000,
+        "chunk_overlap": 100,
+        "separators": ["\n\n", "\n", ". ", " ", ""]
+    },
+    "storage": {
+        "database_path": "./knowledge_base/chroma_db",
+        "default_collection": "default",
+        "persist_directory": "./knowledge_base"
+    },
+    "search": {
+        "default_limit": 5,
+        "max_limit": 20,
+        "similarity_threshold": 0.7
+    },
+    "metadata": {
+        "track_source_url": true,
+        "track_timestamp": true,
+        "track_chunk_info": true,
+        "track_collection": true
+    }
+}
