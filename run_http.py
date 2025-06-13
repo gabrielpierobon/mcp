@@ -74,6 +74,8 @@ google_sheets_tool.register(mcp)
 google_docs_tool.register(mcp)
 google_slides_tool.register(mcp)
 
+# Register the RAG Knowledge Base Tool for semantic search, ingestion, and RAG workflows.
+# Requires: chromadb, sentence-transformers, langchain-text-splitters
 rag_knowledge_base_tool.register(mcp)
 
 # Count registered tools

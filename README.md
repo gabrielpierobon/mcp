@@ -181,6 +181,7 @@ python run.py --stdio
 | **Google Sheets** | 8 spreadsheet tools | Google OAuth2 | ⚡ Optional |
 | **Google Docs** | 5 document tools | Google OAuth2 | ⚡ Optional |
 | **Google Slides** | 10 presentation tools | Google OAuth2 | ⚡ Optional |
+| **🆕 RAG Knowledge Base** | Semantic search, ingestion, stats | chromadb, sentence-transformers | ✅ Core |
 
 ### Core Tools (Always Available)
 - `quick_capture`, `detect_and_capture` - **🆕 Revolutionary** screen capture with [CAPTURE] keyword
@@ -314,6 +315,26 @@ Seamless document creation and management:
 - **Collaborative**: Built-in sharing and permission management
 - **Template Support**: Copy from existing documents and presentations
 
+### 🆕 RAG Knowledge Base Tool
+A full Retrieval-Augmented Generation (RAG) system for building, managing, and searching a semantic knowledge base. Enables your AI agents to provide accurate, source-backed responses using your own documents, URLs, and structured knowledge.
+- **Semantic Search**: Finds relevant information using meaning, not just keywords
+- **Content Ingestion**: Add content from URLs or plain text
+- **Vector Embeddings**: Uses BGE-M3 model for high-quality embeddings
+- **Multi-Collection Support**: Organize knowledge by topic or domain
+- **Source Tracking**: Full metadata and provenance for all content
+- **Production Ready**: Persistent storage with ChromaDB
+- **Dependencies**: `chromadb`, `sentence-transformers`, `langchain-text-splitters`
+- **Docs**: [RAG Knowledge Base Tool](docs/tools/rag-kb-tool.md)
+
+**Basic Usage:**
+- Add a webpage: `add_url_to_kb(url, collection_name)`
+- Add text: `add_text_to_kb(text, source_name, collection_name)`
+- Search: `search_kb(query, collection_name, limit)`
+- List sources: `list_kb_sources(collection_name)`
+- Get stats: `get_kb_stats()`
+
+See the [tool documentation](docs/tools/rag-kb-tool.md) for advanced workflows and integration patterns.
+
 ### Web Automation Capabilities
 Powerful browser control for complex tasks:
 - **Multi-Browser**: Chrome, Firefox, Safari support
@@ -411,6 +432,7 @@ python run.py --stdio  # Test Claude Desktop
 - [Google Sheets Tools](docs/tools/google-sheets-tools.md)
 - [Google Docs Tools](docs/tools/google-docs-tools.md)
 - [Google Slides Tools](docs/tools/google-slides-tools.md)
+- [RAG Knowledge Base Tool](docs/tools/rag-kb-tool.md)
 
 ## 🚀 Production Deployment
 
