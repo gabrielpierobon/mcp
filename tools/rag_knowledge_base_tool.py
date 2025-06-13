@@ -17,9 +17,17 @@ _embedding_model = None
 _text_splitter = None
 _config = None
 
-# Configuration file path
+# Configuration file path (in MCP server root)
 CONFIG_FILE = "kb_config.json"
 KNOWLEDGE_BASE_DIR = Path("C:/Users/usuario/agent_playground/knowledge_base")
+
+def _get_config_path():
+    """Get the path to the configuration file in the MCP server root directory."""
+    # Get the directory where this script is located (tools/)
+    current_dir = Path(__file__).parent
+    # Go up one level to the MCP server root
+    mcp_root = current_dir.parent
+    return mcp_root / CONFIG_FILE
 
 def _load_config() -> Dict[str, Any]:
     """Load configuration from JSON file."""
@@ -27,7 +35,7 @@ def _load_config() -> Dict[str, Any]:
     if _config is not None:
         return _config
     
-    config_path = KNOWLEDGE_BASE_DIR / CONFIG_FILE
+    config_path = _get_config_path()
     if config_path.exists():
         with open(config_path, 'r', encoding='utf-8') as f:
             _config = json.load(f)
@@ -50,6 +58,12 @@ def _load_config() -> Dict[str, Any]:
                 "default_collection": "default"
             }
         }
+        
+        # Save default config to file
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(_config, f, indent=4)
+    
     return _config
 
 def _initialize_chroma():
@@ -118,7 +132,7 @@ def _initialize_text_splitter():
         chunk_size=chunking_config["chunk_size"],
         chunk_overlap=chunking_config["chunk_overlap"],
         length_function=len,
-        separators=chunking_config.get("separators", ["\n\n", "\n", ". ", " ", ""])
+        separators=["\n\n", "\n", ". ", " ", ""]
     )
     
     return _text_splitter
@@ -156,7 +170,7 @@ async def setup_knowledge_base() -> Dict[str, Any]:
         
         # Load/create configuration
         config = _load_config()
-        config_path = KNOWLEDGE_BASE_DIR / CONFIG_FILE
+        config_path = _get_config_path()
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=4)
         
@@ -166,8 +180,17 @@ async def setup_knowledge_base() -> Dict[str, Any]:
         text_splitter = _initialize_text_splitter()
         
         # Test basic functionality
-        # Create a test collection
-        test_collection = client.get_or_create_collection("setup_test")
+        # Create a test collection (handle both ChromaDB versions)
+        try:
+            test_collection = client.get_or_create_collection("setup_test")
+        except Exception as e:
+            print(f"WARNING: Collection creation issue: {str(e)}")
+            # Try alternative approach for newer ChromaDB versions
+            try:
+                test_collection = client.create_collection("setup_test")
+            except:
+                # Collection might already exist
+                test_collection = client.get_collection("setup_test")
         
         # Test embedding
         test_text = "This is a test document for RAG setup."
@@ -190,13 +213,23 @@ async def setup_knowledge_base() -> Dict[str, Any]:
             n_results=1
         )
         
-        # Clean up test collection
-        client.delete_collection("setup_test")
+        # Clean up test collection (handle both ChromaDB versions)
+        try:
+            client.delete_collection("setup_test")
+        except Exception as e:
+            print(f"WARNING: Test cleanup issue: {str(e)}")
         
-        # Get default collection ready
-        default_collection = client.get_or_create_collection(
-            config["storage"]["default_collection"]
-        )
+        # Get default collection ready (handle both ChromaDB versions)
+        try:
+            default_collection = client.get_or_create_collection(
+                config["storage"]["default_collection"]
+            )
+        except Exception as e:
+            print(f"WARNING: Default collection creation issue: {str(e)}")
+            try:
+                default_collection = client.create_collection(config["storage"]["default_collection"])
+            except:
+                default_collection = client.get_collection(config["storage"]["default_collection"])
         
         return {
             "status": "success",
@@ -263,12 +296,30 @@ async def get_kb_health() -> Dict[str, Any]:
         
         # Check database
         client = _initialize_chroma()
-        collections = client.list_collections()
-        health_status["components"]["database"] = {
-            "status": "connected",
-            "collections": len(collections),
-            "collection_names": [col.name for col in collections]
-        }
+        try:
+            # ChromaDB v0.6.0+ returns collection names as strings, not objects
+            collections = client.list_collections()
+            
+            # In v0.6.0+, list_collections returns just names as strings
+            if isinstance(collections, list):
+                collection_names = collections  # Already strings in v0.6.0+
+            else:
+                collection_names = []
+            
+            health_status["components"]["database"] = {
+                "status": "connected",
+                "collections": len(collection_names),
+                "collection_names": collection_names
+            }
+        except Exception as db_error:
+            print(f"WARNING: Database collection listing issue: {str(db_error)}")
+            # Still mark as connected if we can initialize client
+            health_status["components"]["database"] = {
+                "status": "connected_with_warnings",
+                "collections": "unknown",
+                "collection_names": [],
+                "warning": str(db_error)
+            }
         
         # Check embedding model
         embedding_model = _initialize_embedding_model()
@@ -291,6 +342,223 @@ async def get_kb_health() -> Dict[str, Any]:
             "timestamp": datetime.now().isoformat()
         }
 
+async def add_url_to_kb(url: str, collection_name: str = "default", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Add URL content to the knowledge base by scraping and chunking it.
+    
+    Args:
+        url: The URL to scrape and add
+        collection_name: Collection to add content to
+        metadata: Additional metadata to store with chunks
+    
+    Returns:
+        Dictionary with ingestion results
+    """
+    print(f"INFO: Adding URL to knowledge base: {url}")
+    
+    try:
+        # Initialize components
+        client = _initialize_chroma()
+        embedding_model = _initialize_embedding_model()
+        text_splitter = _initialize_text_splitter()
+        
+        # Get or create collection
+        collection = client.get_or_create_collection(collection_name)
+        
+        # Import crawl4ai here to avoid circular imports
+        try:
+            from tools.crawl4ai_tool import crawl_webpage
+        except ImportError:
+            return {
+                "error": "crawl_webpage tool not available",
+                "status": "error"
+            }
+        
+        # Scrape the webpage
+        print(f"INFO: Scraping webpage: {url}")
+        scrape_result = await crawl_webpage(url, output_format="markdown")
+        
+        if "error" in scrape_result:
+            return {
+                "error": f"Failed to scrape URL: {scrape_result['error']}",
+                "status": "error"
+            }
+        
+        # Extract content
+        content = scrape_result.get("markdown", "")
+        if not content or len(content.strip()) < 50:
+            return {
+                "error": "No meaningful content extracted from URL",
+                "status": "error"
+            }
+        
+        # Chunk the content
+        print(f"INFO: Chunking content ({len(content)} characters)")
+        chunks = text_splitter.split_text(content)
+        
+        if not chunks:
+            return {
+                "error": "No chunks generated from content",
+                "status": "error"
+            }
+        
+        # Generate embeddings
+        print(f"INFO: Generating embeddings for {len(chunks)} chunks")
+        embeddings = embedding_model.encode(chunks, normalize_embeddings=True)
+        
+        # Prepare metadata for each chunk
+        base_metadata = {
+            "source_url": url,
+            "source_type": "webpage",
+            "timestamp": datetime.now().isoformat(),
+            "collection": collection_name,
+            "total_chunks": len(chunks),
+            "content_length": len(content)
+        }
+        
+        # Add user-provided metadata
+        if metadata:
+            base_metadata.update(metadata)
+        
+        # Create chunk-specific metadata
+        chunk_metadatas = []
+        for i, chunk in enumerate(chunks):
+            chunk_meta = base_metadata.copy()
+            chunk_meta.update({
+                "chunk_index": i,
+                "chunk_length": len(chunk),
+                "token_count": len(chunk.split())  # Rough token estimate
+            })
+            chunk_metadatas.append(chunk_meta)
+        
+        # Generate unique IDs for chunks
+        chunk_ids = [f"{url}_{i}_{hash(chunk) % 100000}" for i, chunk in enumerate(chunks)]
+        
+        # Add to ChromaDB
+        print(f"INFO: Storing {len(chunks)} chunks in collection '{collection_name}'")
+        collection.add(
+            documents=chunks,
+            embeddings=embeddings.tolist(),
+            metadatas=chunk_metadatas,
+            ids=chunk_ids
+        )
+        
+        return {
+            "status": "success",
+            "message": f"Successfully added URL content to knowledge base",
+            "url": url,
+            "collection": collection_name,
+            "chunks_added": len(chunks),
+            "total_characters": len(content),
+            "chunk_ids": chunk_ids[:5]  # Show first 5 IDs
+        }
+        
+    except Exception as e:
+        print(f"ERROR: Failed to add URL to knowledge base: {str(e)}")
+        return {
+            "error": f"Failed to add URL: {str(e)}",
+            "status": "error"
+        }
+
+async def add_text_to_kb(text: str, source_name: str, collection_name: str = "default", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Add plain text directly to the knowledge base.
+    
+    Args:
+        text: The text content to add
+        source_name: Name/identifier for this text source
+        collection_name: Collection to add content to
+        metadata: Additional metadata to store with chunks
+    
+    Returns:
+        Dictionary with ingestion results
+    """
+    print(f"INFO: Adding text to knowledge base: {source_name}")
+    
+    try:
+        # Validate input
+        if not text or len(text.strip()) < 10:
+            return {
+                "error": "Text content is too short (minimum 10 characters)",
+                "status": "error"
+            }
+        
+        # Initialize components
+        client = _initialize_chroma()
+        embedding_model = _initialize_embedding_model()
+        text_splitter = _initialize_text_splitter()
+        
+        # Get or create collection
+        collection = client.get_or_create_collection(collection_name)
+        
+        # Chunk the content
+        print(f"INFO: Chunking text content ({len(text)} characters)")
+        chunks = text_splitter.split_text(text)
+        
+        if not chunks:
+            return {
+                "error": "No chunks generated from text",
+                "status": "error"
+            }
+        
+        # Generate embeddings
+        print(f"INFO: Generating embeddings for {len(chunks)} chunks")
+        embeddings = embedding_model.encode(chunks, normalize_embeddings=True)
+        
+        # Prepare metadata for each chunk
+        base_metadata = {
+            "source_name": source_name,
+            "source_type": "text",
+            "timestamp": datetime.now().isoformat(),
+            "collection": collection_name,
+            "total_chunks": len(chunks),
+            "content_length": len(text)
+        }
+        
+        # Add user-provided metadata
+        if metadata:
+            base_metadata.update(metadata)
+        
+        # Create chunk-specific metadata
+        chunk_metadatas = []
+        for i, chunk in enumerate(chunks):
+            chunk_meta = base_metadata.copy()
+            chunk_meta.update({
+                "chunk_index": i,
+                "chunk_length": len(chunk),
+                "token_count": len(chunk.split())  # Rough token estimate
+            })
+            chunk_metadatas.append(chunk_meta)
+        
+        # Generate unique IDs for chunks
+        chunk_ids = [f"{source_name}_{i}_{hash(chunk) % 100000}" for i, chunk in enumerate(chunks)]
+        
+        # Add to ChromaDB
+        print(f"INFO: Storing {len(chunks)} chunks in collection '{collection_name}'")
+        collection.add(
+            documents=chunks,
+            embeddings=embeddings.tolist(),
+            metadatas=chunk_metadatas,
+            ids=chunk_ids
+        )
+        
+        return {
+            "status": "success",
+            "message": f"Successfully added text content to knowledge base",
+            "source_name": source_name,
+            "collection": collection_name,
+            "chunks_added": len(chunks),
+            "total_characters": len(text),
+            "chunk_ids": chunk_ids[:5]  # Show first 5 IDs
+        }
+        
+    except Exception as e:
+        print(f"ERROR: Failed to add text to knowledge base: {str(e)}")
+        return {
+            "error": f"Failed to add text: {str(e)}",
+            "status": "error"
+        }
+
 def register(mcp_instance):
     """Register the RAG knowledge base tools with the MCP server"""
     
@@ -308,9 +576,12 @@ def register(mcp_instance):
         print(f"Install with: pip install {' '.join(missing)}")
         return
     
-    # Register setup and health check tools
+    # Register all RAG tools
     mcp_instance.tool()(setup_knowledge_base)
     mcp_instance.tool()(get_kb_health)
+    mcp_instance.tool()(add_url_to_kb)
+    mcp_instance.tool()(add_text_to_kb)
     
-    print("INFO: RAG Knowledge Base infrastructure tools registered successfully")
+    print("INFO: RAG Knowledge Base tools registered successfully")
+    print("INFO: Available tools: setup_knowledge_base, get_kb_health, add_url_to_kb, add_text_to_kb")
     print("INFO: Run setup_knowledge_base() to initialize the system")
