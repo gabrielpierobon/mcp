@@ -559,8 +559,324 @@ async def add_text_to_kb(text: str, source_name: str, collection_name: str = "de
             "status": "error"
         }
 
+# Add these functions to tools/rag_knowledge_base_tool.py
+
+async def search_kb(query: str, collection_name: str = "default", limit: int = 5, include_metadata: bool = True) -> Dict[str, Any]:
+    """
+    Search the knowledge base for content relevant to the query.
+    
+    Args:
+        query: The search query text
+        collection_name: Collection to search in
+        limit: Maximum number of results to return
+        include_metadata: Whether to include metadata in results
+    
+    Returns:
+        Dictionary with search results and metadata
+    """
+    print(f"INFO: Searching knowledge base for: '{query}'")
+    
+    try:
+        # Validate inputs
+        if not query or len(query.strip()) < 3:
+            return {
+                "error": "Query is too short (minimum 3 characters)",
+                "status": "error"
+            }
+        
+        if limit < 1 or limit > 50:
+            return {
+                "error": "Limit must be between 1 and 50",
+                "status": "error"
+            }
+        
+        # Initialize components
+        client = _initialize_chroma()
+        embedding_model = _initialize_embedding_model()
+        
+        # Check if collection exists
+        try:
+            collection = client.get_collection(collection_name)
+        except Exception:
+            return {
+                "error": f"Collection '{collection_name}' not found",
+                "status": "error",
+                "available_collections": [col.name for col in client.list_collections()]
+            }
+        
+        # Generate query embedding
+        print(f"INFO: Generating query embedding")
+        query_embedding = embedding_model.encode([query.strip()], normalize_embeddings=True)
+        
+        # Search the collection
+        print(f"INFO: Searching collection '{collection_name}' for {limit} results")
+        search_results = collection.query(
+            query_embeddings=query_embedding.tolist(),
+            n_results=limit,
+            include=['documents', 'metadatas', 'distances']
+        )
+        
+        # Process results
+        if not search_results['documents'] or not search_results['documents'][0]:
+            return {
+                "status": "success",
+                "query": query,
+                "collection": collection_name,
+                "results": [],
+                "total_results": 0,
+                "message": "No results found"
+            }
+        
+        # Format results
+        formatted_results = []
+        documents = search_results['documents'][0]
+        metadatas = search_results['metadatas'][0] if include_metadata else [{}] * len(documents)
+        distances = search_results['distances'][0]
+        
+        for i, (doc, meta, distance) in enumerate(zip(documents, metadatas, distances)):
+            result = {
+                "rank": i + 1,
+                "content": doc,
+                "similarity_score": float(1 - distance),  # Convert distance to similarity
+                "distance": float(distance)
+            }
+            
+            if include_metadata and meta:
+                result["metadata"] = {
+                    "source": meta.get("source_url") or meta.get("source_name", "unknown"),
+                    "source_type": meta.get("source_type", "unknown"),
+                    "timestamp": meta.get("timestamp"),
+                    "chunk_index": meta.get("chunk_index"),
+                    "chunk_length": meta.get("chunk_length"),
+                    "token_count": meta.get("token_count")
+                }
+                
+                # Add custom metadata fields
+                custom_fields = {k: v for k, v in meta.items() 
+                               if k not in ['source_url', 'source_name', 'source_type', 'timestamp', 
+                                          'chunk_index', 'chunk_length', 'token_count', 'collection']}
+                if custom_fields:
+                    result["metadata"]["custom"] = custom_fields
+            
+            formatted_results.append(result)
+        
+        return {
+            "status": "success",
+            "query": query,
+            "collection": collection_name,
+            "results": formatted_results,
+            "total_results": len(formatted_results),
+            "search_stats": {
+                "embedding_model": _load_config()["embedding"]["model_name"],
+                "similarity_threshold": min(distances) if distances else 0,
+                "max_similarity": max([r["similarity_score"] for r in formatted_results]) if formatted_results else 0
+            }
+        }
+        
+    except Exception as e:
+        print(f"ERROR: Search failed: {str(e)}")
+        return {
+            "error": f"Search failed: {str(e)}",
+            "status": "error"
+        }
+
+async def list_kb_sources(collection_name: str = "default") -> Dict[str, Any]:
+    """
+    List all sources in the knowledge base collection.
+    
+    Args:
+        collection_name: Collection to list sources from
+    
+    Returns:
+        Dictionary with source information
+    """
+    print(f"INFO: Listing sources in collection '{collection_name}'")
+    
+    try:
+        # Initialize components
+        client = _initialize_chroma()
+        
+        # Check if collection exists
+        try:
+            collection = client.get_collection(collection_name)
+        except Exception:
+            return {
+                "error": f"Collection '{collection_name}' not found",
+                "status": "error",
+                "available_collections": [col.name for col in client.list_collections()]
+            }
+        
+        # Get all data from collection
+        all_data = collection.get(include=['metadatas'])
+        
+        if not all_data['metadatas']:
+            return {
+                "status": "success",
+                "collection": collection_name,
+                "sources": [],
+                "total_sources": 0,
+                "total_chunks": 0,
+                "message": "No sources found in collection"
+            }
+        
+        # Analyze sources
+        source_stats = {}
+        total_chunks = len(all_data['metadatas'])
+        
+        for meta in all_data['metadatas']:
+            if not meta:
+                continue
+                
+            # Get source identifier
+            source = meta.get('source_url') or meta.get('source_name', 'unknown')
+            source_type = meta.get('source_type', 'unknown')
+            timestamp = meta.get('timestamp')
+            
+            if source not in source_stats:
+                source_stats[source] = {
+                    "source": source,
+                    "source_type": source_type,
+                    "first_added": timestamp,
+                    "last_updated": timestamp,
+                    "chunk_count": 0,
+                    "total_characters": 0,
+                    "total_tokens": 0
+                }
+            
+            # Update stats
+            source_stats[source]["chunk_count"] += 1
+            source_stats[source]["total_characters"] += meta.get('chunk_length', 0)
+            source_stats[source]["total_tokens"] += meta.get('token_count', 0)
+            
+            # Update timestamps
+            if timestamp:
+                if not source_stats[source]["first_added"] or timestamp < source_stats[source]["first_added"]:
+                    source_stats[source]["first_added"] = timestamp
+                if not source_stats[source]["last_updated"] or timestamp > source_stats[source]["last_updated"]:
+                    source_stats[source]["last_updated"] = timestamp
+        
+        # Sort sources by chunk count (most chunks first)
+        sorted_sources = sorted(source_stats.values(), key=lambda x: x["chunk_count"], reverse=True)
+        
+        return {
+            "status": "success",
+            "collection": collection_name,
+            "sources": sorted_sources,
+            "total_sources": len(sorted_sources),
+            "total_chunks": total_chunks,
+            "summary": {
+                "most_chunks": sorted_sources[0]["chunk_count"] if sorted_sources else 0,
+                "avg_chunks_per_source": total_chunks / len(sorted_sources) if sorted_sources else 0,
+                "source_types": list(set(s["source_type"] for s in sorted_sources))
+            }
+        }
+        
+    except Exception as e:
+        print(f"ERROR: Failed to list sources: {str(e)}")
+        return {
+            "error": f"Failed to list sources: {str(e)}",
+            "status": "error"
+        }
+
+async def get_kb_stats() -> Dict[str, Any]:
+    """
+    Get comprehensive statistics about the knowledge base.
+    
+    Returns:
+        Dictionary with detailed knowledge base statistics
+    """
+    print("INFO: Gathering knowledge base statistics...")
+    
+    try:
+        # Initialize components
+        client = _initialize_chroma()
+        config = _load_config()
+        
+        # Get all collections
+        try:
+            collections = client.list_collections()
+            collection_names = [col.name for col in collections] if collections else []
+        except Exception as e:
+            print(f"WARNING: Could not list collections: {str(e)}")
+            collection_names = []
+        
+        # Analyze each collection
+        collection_stats = {}
+        total_chunks = 0
+        total_sources = 0
+        all_source_types = set()
+        
+        for collection_name in collection_names:
+            try:
+                collection = client.get_collection(collection_name)
+                collection_data = collection.get(include=['metadatas'])
+                
+                chunks_in_collection = len(collection_data.get('metadatas', []))
+                sources_in_collection = set()
+                source_types_in_collection = set()
+                
+                for meta in collection_data.get('metadatas', []):
+                    if meta:
+                        source = meta.get('source_url') or meta.get('source_name', 'unknown')
+                        sources_in_collection.add(source)
+                        source_types_in_collection.add(meta.get('source_type', 'unknown'))
+                
+                collection_stats[collection_name] = {
+                    "chunk_count": chunks_in_collection,
+                    "source_count": len(sources_in_collection),
+                    "source_types": list(source_types_in_collection)
+                }
+                
+                total_chunks += chunks_in_collection
+                total_sources += len(sources_in_collection)
+                all_source_types.update(source_types_in_collection)
+                
+            except Exception as e:
+                print(f"WARNING: Could not analyze collection '{collection_name}': {str(e)}")
+                collection_stats[collection_name] = {
+                    "error": str(e),
+                    "chunk_count": 0,
+                    "source_count": 0,
+                    "source_types": []
+                }
+        
+        # Get system info
+        embedding_model_name = config["embedding"]["model_name"]
+        chunk_size = config["chunking"]["chunk_size"]
+        chunk_overlap = config["chunking"]["chunk_overlap"]
+        
+        return {
+            "status": "success",
+            "timestamp": datetime.now().isoformat(),
+            "overview": {
+                "total_collections": len(collection_names),
+                "total_chunks": total_chunks,
+                "total_sources": total_sources,
+                "source_types": list(all_source_types)
+            },
+            "collections": collection_stats,
+            "configuration": {
+                "embedding_model": embedding_model_name,
+                "chunk_size": chunk_size,
+                "chunk_overlap": chunk_overlap,
+                "database_path": config["storage"]["database_path"]
+            },
+            "performance_metrics": {
+                "avg_chunks_per_collection": total_chunks / len(collection_names) if collection_names else 0,
+                "avg_sources_per_collection": total_sources / len(collection_names) if collection_names else 0,
+                "storage_efficiency": f"{total_chunks} chunks across {len(collection_names)} collections"
+            }
+        }
+        
+    except Exception as e:
+        print(f"ERROR: Failed to get knowledge base stats: {str(e)}")
+        return {
+            "error": f"Failed to get stats: {str(e)}",
+            "status": "error"
+        }
+
 def register(mcp_instance):
-    """Register the RAG knowledge base tools with the MCP server"""
+    """Register ALL RAG knowledge base tools with the MCP server"""
     
     # Check if dependencies are available
     if not all([CHROMADB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE, LANGCHAIN_AVAILABLE]):
@@ -576,12 +892,29 @@ def register(mcp_instance):
         print(f"Install with: pip install {' '.join(missing)}")
         return
     
-    # Register all RAG tools
+    # Register ALL RAG tools (Cards 1, 2, and 3)
+    print("INFO: Registering RAG Knowledge Base tools...")
+    
+    # Card 1: Infrastructure
     mcp_instance.tool()(setup_knowledge_base)
     mcp_instance.tool()(get_kb_health)
+    
+    # Card 2: Content Ingestion
     mcp_instance.tool()(add_url_to_kb)
     mcp_instance.tool()(add_text_to_kb)
     
-    print("INFO: RAG Knowledge Base tools registered successfully")
-    print("INFO: Available tools: setup_knowledge_base, get_kb_health, add_url_to_kb, add_text_to_kb")
-    print("INFO: Run setup_knowledge_base() to initialize the system")
+    # Card 3: Search & Retrieval
+    mcp_instance.tool()(search_kb)
+    mcp_instance.tool()(list_kb_sources)
+    mcp_instance.tool()(get_kb_stats)
+    
+    print("INFO: ✅ ALL RAG Knowledge Base tools registered successfully!")
+    print("INFO: 📚 Available tools:")
+    print("      - setup_knowledge_base() : Initialize the system")
+    print("      - get_kb_health() : Check system health")
+    print("      - add_url_to_kb() : Add webpage content")
+    print("      - add_text_to_kb() : Add text content")
+    print("      - search_kb() : Search knowledge base")
+    print("      - list_kb_sources() : List all sources")
+    print("      - get_kb_stats() : Get detailed statistics")
+    print("INFO: 🚀 Ready for RAG operations!")
