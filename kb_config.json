@@ -12,12 +12,18 @@
         "strategy": "fixed_size",
         "chunk_size": 1000,
         "chunk_overlap": 100,
-        "separators": ["\n\n", "\n", ". ", " ", ""]
+        "separators": [
+            "\n\n",
+            "\n",
+            ". ",
+            " ",
+            ""
+        ]
     },
     "storage": {
-        "database_path": "./knowledge_base/chroma_db",
+        "database_path": "C:/Users/usuario/agent_playground/knowledge_base/chroma_db",
         "default_collection": "default",
-        "persist_directory": "./knowledge_base"
+        "persist_directory": "C:/Users/usuario/agent_playground/knowledge_base"
     },
     "search": {
         "default_limit": 5,

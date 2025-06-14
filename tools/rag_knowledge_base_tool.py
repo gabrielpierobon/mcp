@@ -1,20 +1,33 @@
 # tools/rag_knowledge_base_tool.py
 """
 RAG Knowledge Base Tool for MCP Server
+FIXED VERSION - Eliminates all stdout pollution for MCP compliance
 Complete implementation with all MVP functionality:
 - Infrastructure setup and health monitoring (Card 1)
 - Content ingestion from URLs and text (Card 2) 
 - Search and retrieval with metadata (Card 3)
 
 All print statements removed for MCP protocol compliance.
+Fixed: Silences all stdout/stderr output during model operations.
 """
 
 from typing import Dict, Any, List, Optional
 import os
+import sys
 import json
 import importlib.util
+import contextlib
+import io
+import logging
 from datetime import datetime
 from pathlib import Path
+
+# Suppress all logging from third-party libraries
+logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("torch").setLevel(logging.ERROR)
+logging.getLogger("chromadb").setLevel(logging.ERROR)
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 # Check if RAG dependencies are available
 CHROMADB_AVAILABLE = importlib.util.find_spec("chromadb") is not None
@@ -30,6 +43,20 @@ _config = None
 # Configuration file path (in MCP server root)
 CONFIG_FILE = "kb_config.json"
 KNOWLEDGE_BASE_DIR = Path("C:/Users/usuario/agent_playground/knowledge_base")
+
+@contextlib.contextmanager
+def suppress_stdout_stderr():
+    """Context manager to completely suppress stdout and stderr output."""
+    with open(os.devnull, "w") as devnull:
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        try:
+            sys.stdout = devnull
+            sys.stderr = devnull
+            yield
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
 
 def _get_config_path():
     """Get the path to the configuration file in the MCP server root directory."""
@@ -64,7 +91,7 @@ def _load_config() -> Dict[str, Any]:
                 "chunk_overlap": 100
             },
             "storage": {
-                "database_path": str(KNOWLEDGE_BASE_DIR / "chroma_db"),
+                "database_path": "./knowledge_base/chroma_db",
                 "default_collection": "default"
             }
         }
@@ -85,28 +112,29 @@ def _initialize_chroma():
     if not CHROMADB_AVAILABLE:
         raise ImportError("ChromaDB not available. Install with: pip install chromadb")
     
-    import chromadb
-    from chromadb.config import Settings
-    
-    config = _load_config()
-    db_path = config["storage"]["database_path"]
-    
-    # Ensure directory exists
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    
-    # Initialize persistent client
-    _chroma_client = chromadb.PersistentClient(
-        path=db_path,
-        settings=Settings(
-            anonymized_telemetry=False,
-            allow_reset=True
+    with suppress_stdout_stderr():
+        import chromadb
+        from chromadb.config import Settings
+        
+        config = _load_config()
+        db_path = config["storage"]["database_path"]
+        
+        # Ensure directory exists
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize persistent client
+        _chroma_client = chromadb.PersistentClient(
+            path=db_path,
+            settings=Settings(
+                anonymized_telemetry=False,
+                allow_reset=True
+            )
         )
-    )
     
     return _chroma_client
 
 def _initialize_embedding_model():
-    """Initialize embedding model."""
+    """Initialize embedding model with complete output suppression."""
     global _embedding_model
     if _embedding_model is not None:
         return _embedding_model
@@ -114,13 +142,18 @@ def _initialize_embedding_model():
     if not SENTENCE_TRANSFORMERS_AVAILABLE:
         raise ImportError("sentence-transformers not available. Install with: pip install sentence-transformers")
     
-    from sentence_transformers import SentenceTransformer
-    
-    config = _load_config()
-    model_name = config["embedding"]["model_name"]
-    
-    # Model loading happens silently
-    _embedding_model = SentenceTransformer(model_name)
+    with suppress_stdout_stderr():
+        from sentence_transformers import SentenceTransformer
+        
+        config = _load_config()
+        model_name = config["embedding"]["model_name"]
+        
+        # Suppress transformers logging
+        os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
+        
+        # Model loading happens silently
+        _embedding_model = SentenceTransformer(model_name)
     
     return _embedding_model
 
@@ -133,17 +166,18 @@ def _initialize_text_splitter():
     if not LANGCHAIN_AVAILABLE:
         raise ImportError("langchain-text-splitters not available. Install with: pip install langchain-text-splitters")
     
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
-    
-    config = _load_config()
-    chunking_config = config["chunking"]
-    
-    _text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunking_config["chunk_size"],
-        chunk_overlap=chunking_config["chunk_overlap"],
-        length_function=len,
-        separators=["\n\n", "\n", ". ", " ", ""]
-    )
+    with suppress_stdout_stderr():
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        
+        config = _load_config()
+        chunking_config = config["chunking"]
+        
+        _text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunking_config["chunk_size"],
+            chunk_overlap=chunking_config["chunk_overlap"],
+            length_function=len,
+            separators=["\n\n", "\n", ". ", " ", ""]
+        )
     
     return _text_splitter
 
@@ -182,60 +216,61 @@ async def setup_knowledge_base() -> Dict[str, Any]:
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=4)
         
-        # Initialize components
-        client = _initialize_chroma()
-        embedding_model = _initialize_embedding_model()
-        text_splitter = _initialize_text_splitter()
-        
-        # Test basic functionality
-        # Create a test collection (handle both ChromaDB versions)
-        try:
-            test_collection = client.get_or_create_collection("setup_test")
-        except Exception:
-            # Try alternative approach for newer ChromaDB versions
+        # Initialize components with output suppression
+        with suppress_stdout_stderr():
+            client = _initialize_chroma()
+            embedding_model = _initialize_embedding_model()
+            text_splitter = _initialize_text_splitter()
+            
+            # Test basic functionality
+            # Create a test collection (handle both ChromaDB versions)
             try:
-                test_collection = client.create_collection("setup_test")
-            except:
-                # Collection might already exist
-                test_collection = client.get_collection("setup_test")
-        
-        # Test embedding
-        test_text = "This is a test document for RAG setup."
-        test_embedding = embedding_model.encode([test_text])
-        
-        # Test chunking
-        test_chunks = text_splitter.split_text("This is a longer test document. It should be split into chunks. Each chunk should maintain some context.")
-        
-        # Add test data
-        test_collection.add(
-            documents=[test_text],
-            embeddings=test_embedding.tolist(),
-            metadatas=[{"test": True, "timestamp": datetime.now().isoformat()}],
-            ids=["test_doc_1"]
-        )
-        
-        # Test query
-        query_results = test_collection.query(
-            query_embeddings=test_embedding.tolist(),
-            n_results=1
-        )
-        
-        # Clean up test collection (handle both ChromaDB versions)
-        try:
-            client.delete_collection("setup_test")
-        except Exception:
-            pass  # Collection cleanup is optional
-        
-        # Get default collection ready (handle both ChromaDB versions)
-        try:
-            default_collection = client.get_or_create_collection(
-                config["storage"]["default_collection"]
+                test_collection = client.get_or_create_collection("setup_test")
+            except Exception:
+                # Try alternative approach for newer ChromaDB versions
+                try:
+                    test_collection = client.create_collection("setup_test")
+                except:
+                    # Collection might already exist
+                    test_collection = client.get_collection("setup_test")
+            
+            # Test embedding
+            test_text = "This is a test document for RAG setup."
+            test_embedding = embedding_model.encode([test_text])
+            
+            # Test chunking
+            test_chunks = text_splitter.split_text("This is a longer test document. It should be split into chunks. Each chunk should maintain some context.")
+            
+            # Add test data
+            test_collection.add(
+                documents=[test_text],
+                embeddings=test_embedding.tolist(),
+                metadatas=[{"test": True, "timestamp": datetime.now().isoformat()}],
+                ids=["test_doc_1"]
             )
-        except Exception:
+            
+            # Test query
+            query_results = test_collection.query(
+                query_embeddings=test_embedding.tolist(),
+                n_results=1
+            )
+            
+            # Clean up test collection (handle both ChromaDB versions)
             try:
-                default_collection = client.create_collection(config["storage"]["default_collection"])
-            except:
-                default_collection = client.get_collection(config["storage"]["default_collection"])
+                client.delete_collection("setup_test")
+            except Exception:
+                pass  # Collection cleanup is optional
+            
+            # Get default collection ready (handle both ChromaDB versions)
+            try:
+                default_collection = client.get_or_create_collection(
+                    config["storage"]["default_collection"]
+                )
+            except Exception:
+                try:
+                    default_collection = client.create_collection(config["storage"]["default_collection"])
+                except:
+                    default_collection = client.get_collection(config["storage"]["default_collection"])
         
         return {
             "status": "success",
@@ -297,42 +332,43 @@ async def get_kb_health() -> Dict[str, Any]:
         config = _load_config()
         health_status["components"]["configuration"] = "loaded"
         
-        # Check database
-        client = _initialize_chroma()
-        try:
-            # ChromaDB v0.6.0+ returns collection names as strings, not objects
-            collections = client.list_collections()
+        # Check database with output suppression
+        with suppress_stdout_stderr():
+            client = _initialize_chroma()
+            try:
+                # ChromaDB v0.6.0+ returns collection names as strings, not objects
+                collections = client.list_collections()
+                
+                # In v0.6.0+, list_collections returns just names as strings
+                if isinstance(collections, list):
+                    collection_names = collections  # Already strings in v0.6.0+
+                else:
+                    collection_names = []
+                
+                health_status["components"]["database"] = {
+                    "status": "connected",
+                    "collections": len(collection_names),
+                    "collection_names": collection_names
+                }
+            except Exception as db_error:
+                # Still mark as connected if we can initialize client
+                health_status["components"]["database"] = {
+                    "status": "connected_with_warnings",
+                    "collections": "unknown",
+                    "collection_names": [],
+                    "warning": str(db_error)
+                }
             
-            # In v0.6.0+, list_collections returns just names as strings
-            if isinstance(collections, list):
-                collection_names = collections  # Already strings in v0.6.0+
-            else:
-                collection_names = []
+            # Check embedding model
+            embedding_model = _initialize_embedding_model()
+            health_status["components"]["embedding_model"] = {
+                "status": "loaded",
+                "model_name": config["embedding"]["model_name"]
+            }
             
-            health_status["components"]["database"] = {
-                "status": "connected",
-                "collections": len(collection_names),
-                "collection_names": collection_names
-            }
-        except Exception as db_error:
-            # Still mark as connected if we can initialize client
-            health_status["components"]["database"] = {
-                "status": "connected_with_warnings",
-                "collections": "unknown",
-                "collection_names": [],
-                "warning": str(db_error)
-            }
-        
-        # Check embedding model
-        embedding_model = _initialize_embedding_model()
-        health_status["components"]["embedding_model"] = {
-            "status": "loaded",
-            "model_name": config["embedding"]["model_name"]
-        }
-        
-        # Check text splitter
-        text_splitter = _initialize_text_splitter()
-        health_status["components"]["text_splitter"] = "configured"
+            # Check text splitter
+            text_splitter = _initialize_text_splitter()
+            health_status["components"]["text_splitter"] = "configured"
         
         return health_status
         
@@ -356,13 +392,14 @@ async def add_url_to_kb(url: str, collection_name: str = "default", metadata: Di
         Dictionary with ingestion results
     """
     try:
-        # Initialize components
-        client = _initialize_chroma()
-        embedding_model = _initialize_embedding_model()
-        text_splitter = _initialize_text_splitter()
-        
-        # Get or create collection
-        collection = client.get_or_create_collection(collection_name)
+        # Initialize components with output suppression
+        with suppress_stdout_stderr():
+            client = _initialize_chroma()
+            embedding_model = _initialize_embedding_model()
+            text_splitter = _initialize_text_splitter()
+            
+            # Get or create collection
+            collection = client.get_or_create_collection(collection_name)
         
         # Import crawl4ai here to avoid circular imports
         try:
@@ -390,53 +427,55 @@ async def add_url_to_kb(url: str, collection_name: str = "default", metadata: Di
                 "status": "error"
             }
         
-        # Chunk the content
-        chunks = text_splitter.split_text(content)
-        
-        if not chunks:
-            return {
-                "error": "No chunks generated from content",
-                "status": "error"
+        # Process content with output suppression
+        with suppress_stdout_stderr():
+            # Chunk the content
+            chunks = text_splitter.split_text(content)
+            
+            if not chunks:
+                return {
+                    "error": "No chunks generated from content",
+                    "status": "error"
+                }
+            
+            # Generate embeddings
+            embeddings = embedding_model.encode(chunks, normalize_embeddings=True)
+            
+            # Prepare metadata for each chunk
+            base_metadata = {
+                "source_url": url,
+                "source_type": "webpage",
+                "timestamp": datetime.now().isoformat(),
+                "collection": collection_name,
+                "total_chunks": len(chunks),
+                "content_length": len(content)
             }
-        
-        # Generate embeddings
-        embeddings = embedding_model.encode(chunks, normalize_embeddings=True)
-        
-        # Prepare metadata for each chunk
-        base_metadata = {
-            "source_url": url,
-            "source_type": "webpage",
-            "timestamp": datetime.now().isoformat(),
-            "collection": collection_name,
-            "total_chunks": len(chunks),
-            "content_length": len(content)
-        }
-        
-        # Add user-provided metadata
-        if metadata:
-            base_metadata.update(metadata)
-        
-        # Create chunk-specific metadata
-        chunk_metadatas = []
-        for i, chunk in enumerate(chunks):
-            chunk_meta = base_metadata.copy()
-            chunk_meta.update({
-                "chunk_index": i,
-                "chunk_length": len(chunk),
-                "token_count": len(chunk.split())  # Rough token estimate
-            })
-            chunk_metadatas.append(chunk_meta)
-        
-        # Generate unique IDs for chunks
-        chunk_ids = [f"{url}_{i}_{hash(chunk) % 100000}" for i, chunk in enumerate(chunks)]
-        
-        # Add to ChromaDB
-        collection.add(
-            documents=chunks,
-            embeddings=embeddings.tolist(),
-            metadatas=chunk_metadatas,
-            ids=chunk_ids
-        )
+            
+            # Add user-provided metadata
+            if metadata:
+                base_metadata.update(metadata)
+            
+            # Create chunk-specific metadata
+            chunk_metadatas = []
+            for i, chunk in enumerate(chunks):
+                chunk_meta = base_metadata.copy()
+                chunk_meta.update({
+                    "chunk_index": i,
+                    "chunk_length": len(chunk),
+                    "token_count": len(chunk.split())  # Rough token estimate
+                })
+                chunk_metadatas.append(chunk_meta)
+            
+            # Generate unique IDs for chunks
+            chunk_ids = [f"{url}_{i}_{hash(chunk) % 100000}" for i, chunk in enumerate(chunks)]
+            
+            # Add to ChromaDB
+            collection.add(
+                documents=chunks,
+                embeddings=embeddings.tolist(),
+                metadatas=chunk_metadatas,
+                ids=chunk_ids
+            )
         
         return {
             "status": "success",
@@ -475,61 +514,62 @@ async def add_text_to_kb(text: str, source_name: str, collection_name: str = "de
                 "status": "error"
             }
         
-        # Initialize components
-        client = _initialize_chroma()
-        embedding_model = _initialize_embedding_model()
-        text_splitter = _initialize_text_splitter()
-        
-        # Get or create collection
-        collection = client.get_or_create_collection(collection_name)
-        
-        # Chunk the content
-        chunks = text_splitter.split_text(text)
-        
-        if not chunks:
-            return {
-                "error": "No chunks generated from text",
-                "status": "error"
+        # Initialize components and process with complete output suppression
+        with suppress_stdout_stderr():
+            client = _initialize_chroma()
+            embedding_model = _initialize_embedding_model()
+            text_splitter = _initialize_text_splitter()
+            
+            # Get or create collection
+            collection = client.get_or_create_collection(collection_name)
+            
+            # Chunk the content
+            chunks = text_splitter.split_text(text)
+            
+            if not chunks:
+                return {
+                    "error": "No chunks generated from text",
+                    "status": "error"
+                }
+            
+            # Generate embeddings
+            embeddings = embedding_model.encode(chunks, normalize_embeddings=True)
+            
+            # Prepare metadata for each chunk
+            base_metadata = {
+                "source_name": source_name,
+                "source_type": "text",
+                "timestamp": datetime.now().isoformat(),
+                "collection": collection_name,
+                "total_chunks": len(chunks),
+                "content_length": len(text)
             }
-        
-        # Generate embeddings
-        embeddings = embedding_model.encode(chunks, normalize_embeddings=True)
-        
-        # Prepare metadata for each chunk
-        base_metadata = {
-            "source_name": source_name,
-            "source_type": "text",
-            "timestamp": datetime.now().isoformat(),
-            "collection": collection_name,
-            "total_chunks": len(chunks),
-            "content_length": len(text)
-        }
-        
-        # Add user-provided metadata
-        if metadata:
-            base_metadata.update(metadata)
-        
-        # Create chunk-specific metadata
-        chunk_metadatas = []
-        for i, chunk in enumerate(chunks):
-            chunk_meta = base_metadata.copy()
-            chunk_meta.update({
-                "chunk_index": i,
-                "chunk_length": len(chunk),
-                "token_count": len(chunk.split())  # Rough token estimate
-            })
-            chunk_metadatas.append(chunk_meta)
-        
-        # Generate unique IDs for chunks
-        chunk_ids = [f"{source_name}_{i}_{hash(chunk) % 100000}" for i, chunk in enumerate(chunks)]
-        
-        # Add to ChromaDB
-        collection.add(
-            documents=chunks,
-            embeddings=embeddings.tolist(),
-            metadatas=chunk_metadatas,
-            ids=chunk_ids
-        )
+            
+            # Add user-provided metadata
+            if metadata:
+                base_metadata.update(metadata)
+            
+            # Create chunk-specific metadata
+            chunk_metadatas = []
+            for i, chunk in enumerate(chunks):
+                chunk_meta = base_metadata.copy()
+                chunk_meta.update({
+                    "chunk_index": i,
+                    "chunk_length": len(chunk),
+                    "token_count": len(chunk.split())  # Rough token estimate
+                })
+                chunk_metadatas.append(chunk_meta)
+            
+            # Generate unique IDs for chunks
+            chunk_ids = [f"{source_name}_{i}_{hash(chunk) % 100000}" for i, chunk in enumerate(chunks)]
+            
+            # Add to ChromaDB
+            collection.add(
+                documents=chunks,
+                embeddings=embeddings.tolist(),
+                metadatas=chunk_metadatas,
+                ids=chunk_ids
+            )
         
         return {
             "status": "success",
@@ -574,29 +614,30 @@ async def search_kb(query: str, collection_name: str = "default", limit: int = 5
                 "status": "error"
             }
         
-        # Initialize components
-        client = _initialize_chroma()
-        embedding_model = _initialize_embedding_model()
-        
-        # Check if collection exists
-        try:
-            collection = client.get_collection(collection_name)
-        except Exception:
-            return {
-                "error": f"Collection '{collection_name}' not found",
-                "status": "error",
-                "available_collections": [col.name for col in client.list_collections()]
-            }
-        
-        # Generate query embedding
-        query_embedding = embedding_model.encode([query.strip()], normalize_embeddings=True)
-        
-        # Search the collection
-        search_results = collection.query(
-            query_embeddings=query_embedding.tolist(),
-            n_results=limit,
-            include=['documents', 'metadatas', 'distances']
-        )
+        # Initialize components and search with output suppression
+        with suppress_stdout_stderr():
+            client = _initialize_chroma()
+            embedding_model = _initialize_embedding_model()
+            
+            # Check if collection exists
+            try:
+                collection = client.get_collection(collection_name)
+            except Exception:
+                return {
+                    "error": f"Collection '{collection_name}' not found",
+                    "status": "error",
+                    "available_collections": [col.name for col in client.list_collections()]
+                }
+            
+            # Generate query embedding
+            query_embedding = embedding_model.encode([query.strip()], normalize_embeddings=True)
+            
+            # Search the collection
+            search_results = collection.query(
+                query_embeddings=query_embedding.tolist(),
+                n_results=limit,
+                include=['documents', 'metadatas', 'distances']
+            )
         
         # Process results
         if not search_results['documents'] or not search_results['documents'][0]:
@@ -672,21 +713,22 @@ async def list_kb_sources(collection_name: str = "default") -> Dict[str, Any]:
         Dictionary with source information
     """
     try:
-        # Initialize components
-        client = _initialize_chroma()
-        
-        # Check if collection exists
-        try:
-            collection = client.get_collection(collection_name)
-        except Exception:
-            return {
-                "error": f"Collection '{collection_name}' not found",
-                "status": "error",
-                "available_collections": [col.name for col in client.list_collections()]
-            }
-        
-        # Get all data from collection
-        all_data = collection.get(include=['metadatas'])
+        # Initialize components with output suppression
+        with suppress_stdout_stderr():
+            client = _initialize_chroma()
+            
+            # Check if collection exists
+            try:
+                collection = client.get_collection(collection_name)
+            except Exception:
+                return {
+                    "error": f"Collection '{collection_name}' not found",
+                    "status": "error",
+                    "available_collections": [col.name for col in client.list_collections()]
+                }
+            
+            # Get all data from collection
+            all_data = collection.get(include=['metadatas'])
         
         if not all_data['metadatas']:
             return {
@@ -764,55 +806,56 @@ async def get_kb_stats() -> Dict[str, Any]:
         Dictionary with detailed knowledge base statistics
     """
     try:
-        # Initialize components
-        client = _initialize_chroma()
-        config = _load_config()
-        
-        # Get all collections
-        try:
-            collections = client.list_collections()
-            collection_names = [col.name for col in collections] if collections else []
-        except Exception:
-            collection_names = []
-        
-        # Analyze each collection
-        collection_stats = {}
-        total_chunks = 0
-        total_sources = 0
-        all_source_types = set()
-        
-        for collection_name in collection_names:
+        # Initialize components with output suppression
+        with suppress_stdout_stderr():
+            client = _initialize_chroma()
+            config = _load_config()
+            
+            # Get all collections
             try:
-                collection = client.get_collection(collection_name)
-                collection_data = collection.get(include=['metadatas'])
-                
-                chunks_in_collection = len(collection_data.get('metadatas', []))
-                sources_in_collection = set()
-                source_types_in_collection = set()
-                
-                for meta in collection_data.get('metadatas', []):
-                    if meta:
-                        source = meta.get('source_url') or meta.get('source_name', 'unknown')
-                        sources_in_collection.add(source)
-                        source_types_in_collection.add(meta.get('source_type', 'unknown'))
-                
-                collection_stats[collection_name] = {
-                    "chunk_count": chunks_in_collection,
-                    "source_count": len(sources_in_collection),
-                    "source_types": list(source_types_in_collection)
-                }
-                
-                total_chunks += chunks_in_collection
-                total_sources += len(sources_in_collection)
-                all_source_types.update(source_types_in_collection)
-                
-            except Exception as e:
-                collection_stats[collection_name] = {
-                    "error": str(e),
-                    "chunk_count": 0,
-                    "source_count": 0,
-                    "source_types": []
-                }
+                collections = client.list_collections()
+                collection_names = [col.name for col in collections] if collections else []
+            except Exception:
+                collection_names = []
+            
+            # Analyze each collection
+            collection_stats = {}
+            total_chunks = 0
+            total_sources = 0
+            all_source_types = set()
+            
+            for collection_name in collection_names:
+                try:
+                    collection = client.get_collection(collection_name)
+                    collection_data = collection.get(include=['metadatas'])
+                    
+                    chunks_in_collection = len(collection_data.get('metadatas', []))
+                    sources_in_collection = set()
+                    source_types_in_collection = set()
+                    
+                    for meta in collection_data.get('metadatas', []):
+                        if meta:
+                            source = meta.get('source_url') or meta.get('source_name', 'unknown')
+                            sources_in_collection.add(source)
+                            source_types_in_collection.add(meta.get('source_type', 'unknown'))
+                    
+                    collection_stats[collection_name] = {
+                        "chunk_count": chunks_in_collection,
+                        "source_count": len(sources_in_collection),
+                        "source_types": list(source_types_in_collection)
+                    }
+                    
+                    total_chunks += chunks_in_collection
+                    total_sources += len(sources_in_collection)
+                    all_source_types.update(source_types_in_collection)
+                    
+                except Exception as e:
+                    collection_stats[collection_name] = {
+                        "error": str(e),
+                        "chunk_count": 0,
+                        "source_count": 0,
+                        "source_types": []
+                    }
         
         # Get system info
         embedding_model_name = config["embedding"]["model_name"]
