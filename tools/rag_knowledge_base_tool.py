@@ -1,4 +1,14 @@
 # tools/rag_knowledge_base_tool.py
+"""
+RAG Knowledge Base Tool for MCP Server
+Complete implementation with all MVP functionality:
+- Infrastructure setup and health monitoring (Card 1)
+- Content ingestion from URLs and text (Card 2) 
+- Search and retrieval with metadata (Card 3)
+
+All print statements removed for MCP protocol compliance.
+"""
+
 from typing import Dict, Any, List, Optional
 import os
 import json
@@ -109,7 +119,7 @@ def _initialize_embedding_model():
     config = _load_config()
     model_name = config["embedding"]["model_name"]
     
-    print(f"INFO: Loading embedding model: {model_name}")
+    # Model loading happens silently
     _embedding_model = SentenceTransformer(model_name)
     
     return _embedding_model
@@ -145,8 +155,6 @@ async def setup_knowledge_base() -> Dict[str, Any]:
     Returns:
         Dictionary with setup status and component information
     """
-    print("INFO: Setting up RAG Knowledge Base infrastructure...")
-    
     try:
         # Check dependencies
         missing_deps = []
@@ -183,8 +191,7 @@ async def setup_knowledge_base() -> Dict[str, Any]:
         # Create a test collection (handle both ChromaDB versions)
         try:
             test_collection = client.get_or_create_collection("setup_test")
-        except Exception as e:
-            print(f"WARNING: Collection creation issue: {str(e)}")
+        except Exception:
             # Try alternative approach for newer ChromaDB versions
             try:
                 test_collection = client.create_collection("setup_test")
@@ -216,16 +223,15 @@ async def setup_knowledge_base() -> Dict[str, Any]:
         # Clean up test collection (handle both ChromaDB versions)
         try:
             client.delete_collection("setup_test")
-        except Exception as e:
-            print(f"WARNING: Test cleanup issue: {str(e)}")
+        except Exception:
+            pass  # Collection cleanup is optional
         
         # Get default collection ready (handle both ChromaDB versions)
         try:
             default_collection = client.get_or_create_collection(
                 config["storage"]["default_collection"]
             )
-        except Exception as e:
-            print(f"WARNING: Default collection creation issue: {str(e)}")
+        except Exception:
             try:
                 default_collection = client.create_collection(config["storage"]["default_collection"])
             except:
@@ -256,7 +262,6 @@ async def setup_knowledge_base() -> Dict[str, Any]:
         }
         
     except Exception as e:
-        print(f"ERROR: RAG setup failed: {str(e)}")
         return {
             "error": f"Setup failed: {str(e)}",
             "status": "error"
@@ -269,8 +274,6 @@ async def get_kb_health() -> Dict[str, Any]:
     Returns:
         Dictionary with health status of all components
     """
-    print("INFO: Checking RAG Knowledge Base health...")
-    
     try:
         health_status = {
             "status": "healthy",
@@ -312,7 +315,6 @@ async def get_kb_health() -> Dict[str, Any]:
                 "collection_names": collection_names
             }
         except Exception as db_error:
-            print(f"WARNING: Database collection listing issue: {str(db_error)}")
             # Still mark as connected if we can initialize client
             health_status["components"]["database"] = {
                 "status": "connected_with_warnings",
@@ -335,7 +337,6 @@ async def get_kb_health() -> Dict[str, Any]:
         return health_status
         
     except Exception as e:
-        print(f"ERROR: Health check failed: {str(e)}")
         return {
             "status": "unhealthy",
             "error": str(e),
@@ -354,8 +355,6 @@ async def add_url_to_kb(url: str, collection_name: str = "default", metadata: Di
     Returns:
         Dictionary with ingestion results
     """
-    print(f"INFO: Adding URL to knowledge base: {url}")
-    
     try:
         # Initialize components
         client = _initialize_chroma()
@@ -375,7 +374,6 @@ async def add_url_to_kb(url: str, collection_name: str = "default", metadata: Di
             }
         
         # Scrape the webpage
-        print(f"INFO: Scraping webpage: {url}")
         scrape_result = await crawl_webpage(url, output_format="markdown")
         
         if "error" in scrape_result:
@@ -393,7 +391,6 @@ async def add_url_to_kb(url: str, collection_name: str = "default", metadata: Di
             }
         
         # Chunk the content
-        print(f"INFO: Chunking content ({len(content)} characters)")
         chunks = text_splitter.split_text(content)
         
         if not chunks:
@@ -403,7 +400,6 @@ async def add_url_to_kb(url: str, collection_name: str = "default", metadata: Di
             }
         
         # Generate embeddings
-        print(f"INFO: Generating embeddings for {len(chunks)} chunks")
         embeddings = embedding_model.encode(chunks, normalize_embeddings=True)
         
         # Prepare metadata for each chunk
@@ -435,7 +431,6 @@ async def add_url_to_kb(url: str, collection_name: str = "default", metadata: Di
         chunk_ids = [f"{url}_{i}_{hash(chunk) % 100000}" for i, chunk in enumerate(chunks)]
         
         # Add to ChromaDB
-        print(f"INFO: Storing {len(chunks)} chunks in collection '{collection_name}'")
         collection.add(
             documents=chunks,
             embeddings=embeddings.tolist(),
@@ -454,7 +449,6 @@ async def add_url_to_kb(url: str, collection_name: str = "default", metadata: Di
         }
         
     except Exception as e:
-        print(f"ERROR: Failed to add URL to knowledge base: {str(e)}")
         return {
             "error": f"Failed to add URL: {str(e)}",
             "status": "error"
@@ -473,8 +467,6 @@ async def add_text_to_kb(text: str, source_name: str, collection_name: str = "de
     Returns:
         Dictionary with ingestion results
     """
-    print(f"INFO: Adding text to knowledge base: {source_name}")
-    
     try:
         # Validate input
         if not text or len(text.strip()) < 10:
@@ -492,7 +484,6 @@ async def add_text_to_kb(text: str, source_name: str, collection_name: str = "de
         collection = client.get_or_create_collection(collection_name)
         
         # Chunk the content
-        print(f"INFO: Chunking text content ({len(text)} characters)")
         chunks = text_splitter.split_text(text)
         
         if not chunks:
@@ -502,7 +493,6 @@ async def add_text_to_kb(text: str, source_name: str, collection_name: str = "de
             }
         
         # Generate embeddings
-        print(f"INFO: Generating embeddings for {len(chunks)} chunks")
         embeddings = embedding_model.encode(chunks, normalize_embeddings=True)
         
         # Prepare metadata for each chunk
@@ -534,7 +524,6 @@ async def add_text_to_kb(text: str, source_name: str, collection_name: str = "de
         chunk_ids = [f"{source_name}_{i}_{hash(chunk) % 100000}" for i, chunk in enumerate(chunks)]
         
         # Add to ChromaDB
-        print(f"INFO: Storing {len(chunks)} chunks in collection '{collection_name}'")
         collection.add(
             documents=chunks,
             embeddings=embeddings.tolist(),
@@ -553,13 +542,10 @@ async def add_text_to_kb(text: str, source_name: str, collection_name: str = "de
         }
         
     except Exception as e:
-        print(f"ERROR: Failed to add text to knowledge base: {str(e)}")
         return {
             "error": f"Failed to add text: {str(e)}",
             "status": "error"
         }
-
-# Add these functions to tools/rag_knowledge_base_tool.py
 
 async def search_kb(query: str, collection_name: str = "default", limit: int = 5, include_metadata: bool = True) -> Dict[str, Any]:
     """
@@ -574,8 +560,6 @@ async def search_kb(query: str, collection_name: str = "default", limit: int = 5
     Returns:
         Dictionary with search results and metadata
     """
-    print(f"INFO: Searching knowledge base for: '{query}'")
-    
     try:
         # Validate inputs
         if not query or len(query.strip()) < 3:
@@ -605,11 +589,9 @@ async def search_kb(query: str, collection_name: str = "default", limit: int = 5
             }
         
         # Generate query embedding
-        print(f"INFO: Generating query embedding")
         query_embedding = embedding_model.encode([query.strip()], normalize_embeddings=True)
         
         # Search the collection
-        print(f"INFO: Searching collection '{collection_name}' for {limit} results")
         search_results = collection.query(
             query_embeddings=query_embedding.tolist(),
             n_results=limit,
@@ -674,7 +656,6 @@ async def search_kb(query: str, collection_name: str = "default", limit: int = 5
         }
         
     except Exception as e:
-        print(f"ERROR: Search failed: {str(e)}")
         return {
             "error": f"Search failed: {str(e)}",
             "status": "error"
@@ -690,8 +671,6 @@ async def list_kb_sources(collection_name: str = "default") -> Dict[str, Any]:
     Returns:
         Dictionary with source information
     """
-    print(f"INFO: Listing sources in collection '{collection_name}'")
-    
     try:
         # Initialize components
         client = _initialize_chroma()
@@ -772,7 +751,6 @@ async def list_kb_sources(collection_name: str = "default") -> Dict[str, Any]:
         }
         
     except Exception as e:
-        print(f"ERROR: Failed to list sources: {str(e)}")
         return {
             "error": f"Failed to list sources: {str(e)}",
             "status": "error"
@@ -785,8 +763,6 @@ async def get_kb_stats() -> Dict[str, Any]:
     Returns:
         Dictionary with detailed knowledge base statistics
     """
-    print("INFO: Gathering knowledge base statistics...")
-    
     try:
         # Initialize components
         client = _initialize_chroma()
@@ -796,8 +772,7 @@ async def get_kb_stats() -> Dict[str, Any]:
         try:
             collections = client.list_collections()
             collection_names = [col.name for col in collections] if collections else []
-        except Exception as e:
-            print(f"WARNING: Could not list collections: {str(e)}")
+        except Exception:
             collection_names = []
         
         # Analyze each collection
@@ -832,7 +807,6 @@ async def get_kb_stats() -> Dict[str, Any]:
                 all_source_types.update(source_types_in_collection)
                 
             except Exception as e:
-                print(f"WARNING: Could not analyze collection '{collection_name}': {str(e)}")
                 collection_stats[collection_name] = {
                     "error": str(e),
                     "chunk_count": 0,
@@ -869,7 +843,6 @@ async def get_kb_stats() -> Dict[str, Any]:
         }
         
     except Exception as e:
-        print(f"ERROR: Failed to get knowledge base stats: {str(e)}")
         return {
             "error": f"Failed to get stats: {str(e)}",
             "status": "error"
@@ -888,13 +861,9 @@ def register(mcp_instance):
         if not LANGCHAIN_AVAILABLE:
             missing.append("langchain-text-splitters")
         
-        print(f"WARNING: RAG Knowledge Base tools not registered - missing dependencies: {', '.join(missing)}")
-        print(f"Install with: pip install {' '.join(missing)}")
         return
     
     # Register ALL RAG tools (Cards 1, 2, and 3)
-    print("INFO: Registering RAG Knowledge Base tools...")
-    
     # Card 1: Infrastructure
     mcp_instance.tool()(setup_knowledge_base)
     mcp_instance.tool()(get_kb_health)
@@ -907,14 +876,3 @@ def register(mcp_instance):
     mcp_instance.tool()(search_kb)
     mcp_instance.tool()(list_kb_sources)
     mcp_instance.tool()(get_kb_stats)
-    
-    print("INFO: ✅ ALL RAG Knowledge Base tools registered successfully!")
-    print("INFO: 📚 Available tools:")
-    print("      - setup_knowledge_base() : Initialize the system")
-    print("      - get_kb_health() : Check system health")
-    print("      - add_url_to_kb() : Add webpage content")
-    print("      - add_text_to_kb() : Add text content")
-    print("      - search_kb() : Search knowledge base")
-    print("      - list_kb_sources() : List all sources")
-    print("      - get_kb_stats() : Get detailed statistics")
-    print("INFO: 🚀 Ready for RAG operations!")
