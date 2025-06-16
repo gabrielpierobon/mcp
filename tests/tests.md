@@ -31,13 +31,18 @@ A comprehensive test suite for the Model Context Protocol (MCP) server using pyt
 - ⏳ Google Workspace Tools (Sheets, Docs, Slides, mocked)
 - ⏳ RAG Knowledge Base (vector operations, mocked)
 
+> **Note:** The test suite is designed to be run directly with `pytest`. No custom runner script is required.
+
+> **Note:** If you encounter `ModuleNotFoundError: No module named 'fastmcp'` or issues with real API calls, ensure all external dependencies are properly mocked and your PYTHONPATH includes the project root.
+
 ## 🚀 Quick Start
 
 ### Installation
 
 ```bash
-# Install test dependencies
-pip install -r tests/requirements-test.txt
+# Install test dependencies (example)
+pip install pytest pytest-cov pytest-xdist
+# Add any other dependencies your tests require
 ```
 
 ### Running Tests
@@ -72,8 +77,6 @@ pytest tests/ -n auto
 tests/
 ├── 📄 conftest.py              # Shared fixtures and configuration
 ├── 📄 pytest.ini              # Pytest configuration
-├── 📄 requirements-test.txt    # Test dependencies
-
 ├── 📄 README.md               # This file
 │
 ├── 🔧 Unit Tests
@@ -275,8 +278,8 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - run: python tests/run_tests.py --install-deps
-      - run: python tests/run_tests.py --coverage --junit
+      - run: pip install pytest pytest-cov
+      - run: pytest tests/ --cov=. --cov-report=term --junitxml=tests/results/junit.xml
       - uses: actions/upload-artifact@v3
         with:
           name: test-results
