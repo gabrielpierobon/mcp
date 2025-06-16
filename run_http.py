@@ -4,6 +4,13 @@ Simple FastMCP server for n8n integration.
 Uses FastMCP's built-in transport without custom routing.
 """
 
+# Suppress Pydantic deprecation warnings early
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pydantic.*")
+warnings.filterwarnings("ignore", message=".*class-based.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*PydanticDeprecatedSince20.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message="Support for class-based `config` is deprecated.*", category=DeprecationWarning)
+
 import os
 import sys
 import logging

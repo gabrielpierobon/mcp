@@ -357,6 +357,21 @@ async def capture_region_to_clipboard(
     """
     print(f"INFO: capture_region_to_clipboard called - region: {x},{y} {width}x{height}")
     
+    # Validate coordinates
+    if x < 0 or y < 0:
+        return {
+            "error": "Invalid coordinates: x and y must be non-negative",
+            "provided": {"x": x, "y": y, "width": width, "height": height},
+            "status": "error"
+        }
+    
+    if width <= 0 or height <= 0:
+        return {
+            "error": "Invalid dimensions: width and height must be positive",
+            "provided": {"x": x, "y": y, "width": width, "height": height},
+            "status": "error"
+        }
+    
     region = {"x": x, "y": y, "width": width, "height": height}
     result = await capture_to_clipboard(region=region, context=context)
     
@@ -381,6 +396,14 @@ async def capture_monitor_to_clipboard(
         Screenshot capture result from the specified monitor
     """
     print(f"INFO: capture_monitor_to_clipboard called - monitor: {monitor_number}")
+    
+    # Validate monitor number
+    if monitor_number <= 0:
+        return {
+            "error": "Invalid monitor number: must be positive (1, 2, 3, etc.)",
+            "provided": monitor_number,
+            "status": "error"
+        }
     
     result = await capture_to_clipboard(monitor=monitor_number, context=context)
     
